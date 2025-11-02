@@ -161,3 +161,8 @@ p {
 button, a {
   transition: all 0.15s ease;
 }
+
+/* Glass Morphism Effect for Login/Auth Pages */
+.glass-dark {
+  @apply bg-white/10 backdrop-blur-md border border-white/20;
+}
