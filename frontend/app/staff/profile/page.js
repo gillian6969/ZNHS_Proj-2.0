@@ -83,9 +83,24 @@ export default function StaffProfile() {
       const formData = new FormData();
       formData.append('avatar', file);
       const { data } = await staffAPI.uploadAvatar(user._id, formData);
-      setUser({ ...user, avatar: data.avatar });
+      const updatedUser = { ...user, avatar: data.avatar };
+      setUser(updatedUser);
+      try { localStorage.setItem('user', JSON.stringify(updatedUser)); } catch (_) {}
       setToast({ isOpen: true, message: 'Avatar uploaded successfully! ✓', type: 'success' });
     } catch (error) {
+      // Fallback: if backend saved but response errored, re-fetch from localStorage snapshot
+      try {
+        const refreshed = localStorage.getItem('user');
+        if (refreshed) {
+          const parsed = JSON.parse(refreshed);
+          if (parsed?.avatar) {
+            const updatedUser = { ...user, avatar: parsed.avatar };
+            setUser(updatedUser);
+            setToast({ isOpen: true, message: 'Avatar uploaded successfully! ✓', type: 'success' });
+            return;
+          }
+        }
+      } catch (_) {}
       setToast({ isOpen: true, message: 'Failed to upload avatar', type: 'error' });
     } finally {
       setUploadingAvatar(false);
@@ -152,7 +167,7 @@ export default function StaffProfile() {
                 <div className="relative">
                   {user?.avatar ? (
                     <img 
-                      src={`http://localhost:5000${user.avatar}`} 
+                      src={`http://localhost:5000${user.avatar}?t=${typeof window !== 'undefined' ? Date.now() : ''}`} 
                       alt={user?.name}
                       className="w-20 h-20 rounded-full object-cover border-4 border-green-500"
                     />

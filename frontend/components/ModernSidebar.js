@@ -112,7 +112,7 @@ export default function ModernSidebar({ menuItems, children, pageTitle }) {
       {/* Main Content */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${isCollapsed ? 'ml-24' : 'ml-72'}`}>
         {/* Top Bar */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b-2 border-blue-100 flex items-center justify-between px-8 shadow-lg">
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b-2 border-blue-100 flex items-center justify-between px-8 shadow-lg relative z-[1000]">
           <div className="flex items-center gap-4">
             {/* Burger Menu */}
             <button
@@ -142,7 +142,7 @@ export default function ModernSidebar({ menuItems, children, pageTitle }) {
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full blur-md opacity-60"></div>
                         {user?.avatar ? (
                           <img 
-                            src={`http://localhost:5000${user.avatar}`}
+                            src={`http://localhost:5000${user.avatar}?t=${typeof window !== 'undefined' ? Date.now() : ''}`}
                             alt={user?.name}
                             className="relative w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
                           />
@@ -158,10 +158,10 @@ export default function ModernSidebar({ menuItems, children, pageTitle }) {
                     {showUserMenu && (
                       <>
                         <div 
-                          className="fixed inset-0 z-40" 
+                          className="fixed inset-0 z-[9998]" 
                           onClick={() => setShowUserMenu(false)}
                         ></div>
-                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 animate-slideUp">
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-[9999] animate-slideUp">
                           <Link
                             href={
                               user?.role === 'student' 

@@ -66,7 +66,7 @@ function LoginForm() {
             Welcome to ZNHS
           </h1>
           <p className="text-white/95 text-sm md:text-base drop-shadow-md">
-            Academic Information Management System
+            Academic Student Grades Portal
           </p>
         </div>
 
@@ -90,7 +90,7 @@ function LoginForm() {
                 : 'bg-white/20 text-white hover:bg-white/30 border-2 border-white/10'
             }`}
           >
-            Staff
+            Faculty
           </button>
         </div>
 

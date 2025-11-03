@@ -28,13 +28,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+    const isAuthLogin = requestUrl.includes('/auth/login');
+
+    // Only force-redirect on 401 when not already on the login flow
+    if (status === 401 && !isAuthLogin) {
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch (_) {}
+      // Do not auto-redirect here to avoid refresh flicker on login; allow caller to handle
     }
     return Promise.reject(error);
   }

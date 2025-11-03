@@ -460,15 +460,21 @@ export function AttendancePieChart({ data }) {
     responsive: true,
     maintainAspectRatio: false,
     cutout: '60%',
+    layout: {
+      // Add breathing room so the chart doesn't stick to the top
+      padding: { top: 16, bottom: 12 },
+    },
     plugins: {
       legend: {
         position: 'bottom',
         labels: {
-          padding: 15,
+          padding: 18,
           font: { size: 12 },
           color: '#6b7280',
           usePointStyle: true,
           pointStyle: 'circle',
+          boxWidth: 10,
+          boxHeight: 10,
           generateLabels: function(chart) {
             const data = chart.data;
             if (data.labels.length && data.datasets.length) {
@@ -508,7 +514,7 @@ export function AttendancePieChart({ data }) {
   };
 
   return (
-    <div className="h-64">
+    <div className="h-80 pt-3 pb-2">
       <Doughnut data={chartData} options={options} />
     </div>
   );

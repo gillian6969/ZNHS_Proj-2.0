@@ -4,6 +4,47 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { useEffect, useRef, useState } from 'react';
+
+function CountUp({ end = 0, suffix = '+', duration = 3000, className = '' }) {
+  const [value, setValue] = useState(0);
+  const ref = useRef(null);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasAnimated.current) {
+            hasAnimated.current = true;
+            const start = performance.now();
+            const animate = (now) => {
+              const elapsed = now - start;
+              const progress = Math.min(elapsed / duration, 1);
+              setValue(Math.floor(end * progress));
+              if (progress < 1) requestAnimationFrame(animate);
+            };
+            requestAnimationFrame(animate);
+          }
+        });
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [end, duration]);
+
+  return (
+    <span ref={ref} className={className}>
+      {value}
+      {suffix}
+    </span>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -70,15 +111,21 @@ export default function HomePage() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-6 pt-8">
                 <div className="text-center bg-white/20 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/30">
-                  <div className="text-3xl font-bold text-white drop-shadow-lg">1000+</div>
+                  <div className="text-3xl font-bold text-white drop-shadow-lg">
+                    <CountUp end={1000} />
+                  </div>
                   <div className="text-sm text-white/90 font-medium">Students</div>
                 </div>
                 <div className="text-center bg-white/20 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/30">
-                  <div className="text-3xl font-bold text-white drop-shadow-lg">50+</div>
+                  <div className="text-3xl font-bold text-white drop-shadow-lg">
+                    <CountUp end={50} />
+                  </div>
                   <div className="text-sm text-white/90 font-medium">Teachers</div>
                 </div>
                 <div className="text-center bg-white/20 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/30">
-                  <div className="text-3xl font-bold text-white drop-shadow-lg">77+</div>
+                  <div className="text-3xl font-bold text-white drop-shadow-lg">
+                    <CountUp end={77} />
+                  </div>
                   <div className="text-sm text-white/90 font-medium">Years</div>
                 </div>
               </div>

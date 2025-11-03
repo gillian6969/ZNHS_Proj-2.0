@@ -1,5 +1,7 @@
 'use client';
 
+import Icon from './Icon';
+
 export default function ConfirmModal({ isOpen, onClose, onConfirm, title, message, type = 'danger' }) {
   if (!isOpen) return null;
 
@@ -30,31 +32,33 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
   const theme = colors[type] || colors.danger;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-[2px]"
         onClick={onClose}
       ></div>
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full animate-scale">
-        <div className={`${theme.bg} p-6 rounded-t-2xl`}>
-          <div className="flex items-center space-x-4">
-            <div className={`${theme.iconBg} ${theme.iconText} w-12 h-12 rounded-full flex items-center justify-center text-2xl`}>
-              {theme.icon}
+      <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 animate-scale">
+        <div className={`${theme.bg} p-6 rounded-t-2xl border-b border-white/60`}>
+          <div className="flex items-center gap-4">
+            <div className={`${theme.iconBg} ${theme.iconText} w-12 h-12 rounded-xl flex items-center justify-center`}> 
+              {type === 'danger' && <Icon name="warning" className="w-6 h-6" />}
+              {type === 'warning' && <Icon name="alert" className="w-6 h-6" />}
+              {type === 'info' && <Icon name="info" className="w-6 h-6" />}
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           </div>
         </div>
 
         <div className="p-6">
-          <p className="text-gray-700 text-lg mb-6">{message}</p>
+          <p className="text-gray-700 text-base mb-6 leading-relaxed">{message}</p>
 
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
@@ -83,7 +87,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
           }
         }
         .animate-scale {
-          animation: scale 0.2s ease-out;
+          animation: scale 0.18s ease-out;
         }
       `}</style>
     </div>
