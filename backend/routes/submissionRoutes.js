@@ -9,12 +9,13 @@ import {
   getStudentSubmissions,
 } from '../controllers/submissionController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { uploadSubmission } from '../middleware/upload.js';
 
 const router = express.Router();
 
 router.route('/')
   .get(protect, getAllSubmissions)
-  .post(protect, authorize('student'), createSubmission);
+  .post(protect, authorize('student'), uploadSubmission, createSubmission);
 
 router.get('/student/:studentId', protect, getStudentSubmissions);
 

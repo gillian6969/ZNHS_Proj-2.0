@@ -6,14 +6,14 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Icon from '@/components/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { attendanceAPI } from '@/utils/api';
-import { AttendanceChart } from '@/components/Charts';
 import Loading from '@/components/Loading';
 
 const studentMenu = [
   { label: 'Dashboard', href: '/student/dashboard', iconName: 'dashboard' },
   { label: 'Grades', href: '/student/grades', iconName: 'grades' },
-  { label: 'Subjects', href: '/student/subjects', iconName: 'book' },
+  { label: 'Learning Material', href: '/student/subjects', iconName: 'book' },
   { label: 'Attendance', href: '/student/attendance', iconName: 'calendar' },
+  { label: 'Announcements', href: '/student/announcements', iconName: 'announcement' },
   { label: 'Profile', href: '/student/profile', iconName: 'user' },
   { label: 'Log Out', action: 'logout', iconName: 'logout' },
 ];
@@ -60,8 +60,7 @@ export default function StudentAttendance() {
 
   return (
     <ProtectedRoute allowedRoles={['student']}>
-      <ModernSidebar menuItems={studentMenu}>
-        <h1 className="mb-5">Attendance Record</h1>
+      <ModernSidebar menuItems={studentMenu} pageTitle="My Attendance">
 
         {loading ? (
           <Loading />
@@ -90,23 +89,6 @@ export default function StudentAttendance() {
                 <h2 className="text-2xl font-bold text-blue-500">{stats.excused}</h2>
               </div>
             </div>
-
-            {/* Chart */}
-            {attendance.length > 0 && (
-              <div className="card mb-5">
-                <h3 className="mb-3">Attendance Trend</h3>
-                <AttendanceChart
-                  data={{
-                    labels: attendance.slice(0, 10).reverse().map(a => 
-                      new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    ),
-                    values: attendance.slice(0, 10).reverse().map(a => 
-                      a.status === 'present' ? 100 : a.status === 'late' ? 75 : 0
-                    ),
-                  }}
-                />
-              </div>
-            )}
 
             {/* Filter */}
             <div className="card mb-5">

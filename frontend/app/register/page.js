@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { GRADE_LEVELS, SECTIONS } from '@/utils/constants';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -136,12 +137,9 @@ export default function RegisterPage() {
               required
             >
               <option value="">Select Grade Level</option>
-              <option value="Grade 7">Grade 7</option>
-              <option value="Grade 8">Grade 8</option>
-              <option value="Grade 9">Grade 9</option>
-              <option value="Grade 10">Grade 10</option>
-              <option value="Grade 11">Grade 11</option>
-              <option value="Grade 12">Grade 12</option>
+              {GRADE_LEVELS.map(grade => (
+                <option key={grade} value={grade}>{grade}</option>
+              ))}
             </select>
           </div>
 
@@ -149,15 +147,18 @@ export default function RegisterPage() {
             <label className="block text-white mb-2 font-medium text-sm">
               Section *
             </label>
-            <input
-              type="text"
+            <select
               name="section"
               value={formData.section}
               onChange={handleChange}
               className="input-field"
-              placeholder="e.g., Section A"
               required
-            />
+            >
+              <option value="">Select Section</option>
+              {SECTIONS.map(section => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </select>
           </div>
 
           <div>

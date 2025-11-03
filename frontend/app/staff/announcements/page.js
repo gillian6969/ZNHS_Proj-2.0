@@ -6,8 +6,10 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Icon from '@/components/Icon';
-import { announcementAPI } from '@/utils/api';
+import Toast from '@/components/Toast';
+import { announcementAPI, classAPI } from '@/utils/api';
 import Loading from '@/components/Loading';
+import { useAuth } from '@/context/AuthContext';
 
 const staffMenu = [
   { label: 'Dashboard', href: '/staff/dashboard', iconName: 'dashboard' },
@@ -20,27 +22,54 @@ const staffMenu = [
 ];
 
 export default function StaffAnnouncements() {
+  const { user } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('all');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [toast, setToast] = useState({ isOpen: false, message: '', type: 'success' });
   const [formData, setFormData] = useState({
     title: '',
     body: '',
     priority: 'normal',
+    classId: '',
   });
 
   useEffect(() => {
+    fetchClasses();
     fetchAnnouncements();
   }, []);
 
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [selectedClass]);
+
+  const fetchClasses = async () => {
+    try {
+      const { data } = await classAPI.getAll();
+      // Filter classes where teacher is assigned
+      const teacherClasses = data.filter(cls => {
+        return cls.teachers?.some(
+          t => t.teacherId && (t.teacherId._id === user?._id || t.teacherId.toString() === user?._id)
+        );
+      });
+      setClasses(teacherClasses);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
+
   const fetchAnnouncements = async () => {
     try {
-      const { data } = await announcementAPI.getAll();
+      const params = selectedClass === 'all' ? {} : { classId: selectedClass };
+      const { data } = await announcementAPI.getAll(params);
       setAnnouncements(data);
     } catch (error) {
       console.error('Error fetching announcements:', error);
+      setToast({ isOpen: true, message: 'Failed to load announcements', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -56,13 +85,17 @@ export default function StaffAnnouncements() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await announcementAPI.create(formData);
-      alert('Announcement posted successfully!');
+      const payload = {
+        ...formData,
+        classId: formData.classId === 'all' ? null : formData.classId,
+      };
+      await announcementAPI.create(payload);
+      setToast({ isOpen: true, message: 'Announcement posted successfully! ✓', type: 'success' });
       setIsModalOpen(false);
       resetForm();
       fetchAnnouncements();
     } catch (error) {
-      alert('Failed to post announcement');
+      setToast({ isOpen: true, message: 'Failed to post announcement', type: 'error' });
     }
   };
 
@@ -71,10 +104,10 @@ export default function StaffAnnouncements() {
     
     try {
       await announcementAPI.delete(selectedAnnouncement._id);
-      alert('Announcement deleted successfully!');
+      setToast({ isOpen: true, message: 'Announcement deleted successfully! ✓', type: 'success' });
       fetchAnnouncements();
     } catch (error) {
-      alert('Failed to delete announcement');
+      setToast({ isOpen: true, message: 'Failed to delete announcement', type: 'error' });
     }
   };
 
@@ -88,14 +121,29 @@ export default function StaffAnnouncements() {
       title: '',
       body: '',
       priority: 'normal',
+      classId: '',
     });
   };
 
   return (
     <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-      <ModernSidebar menuItems={staffMenu}>
+      <ModernSidebar menuItems={staffMenu} pageTitle="Announcements">
         <div className="flex justify-between items-center mb-5">
-          <h1>Announcements</h1>
+          <div className="flex items-center gap-3">
+            <label className="input-label mb-0">Filter by Class:</label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="input-field max-w-xs"
+            >
+              <option value="all">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls._id} value={cls._id}>
+                  {cls.className || `${cls.gradeLevel} - ${cls.section}`}
+                </option>
+              ))}
+            </select>
+          </div>
           <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
             <Icon name="add" className="w-4 h-4" />
             New Announcement
@@ -186,6 +234,23 @@ export default function StaffAnnouncements() {
             </div>
 
             <div>
+              <label className="input-label">Target Class</label>
+              <select
+                name="classId"
+                value={formData.classId}
+                onChange={handleChange}
+                className="input-field"
+              >
+                <option value="all">All Classes</option>
+                {classes.map((cls) => (
+                  <option key={cls._id} value={cls._id}>
+                    {cls.className || `${cls.gradeLevel} - ${cls.section}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="input-label">Priority</label>
               <select
                 name="priority"
@@ -194,7 +259,7 @@ export default function StaffAnnouncements() {
                 className="input-field"
               >
                 <option value="normal">Normal</option>
-                <option value="important">Important</option>
+                <option value="high">High</option>
                 <option value="urgent">Urgent</option>
               </select>
             </div>
@@ -225,6 +290,14 @@ export default function StaffAnnouncements() {
           title="Delete Announcement"
           message={`Are you sure you want to delete "${selectedAnnouncement?.title}"?`}
           type="danger"
+        />
+
+        {/* Toast Notification */}
+        <Toast
+          isOpen={toast.isOpen}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, isOpen: false })}
         />
       </ModernSidebar>
     </ProtectedRoute>

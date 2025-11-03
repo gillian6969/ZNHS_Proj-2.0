@@ -80,3 +80,38 @@ export const uploadSubmission = multer({
   fileFilter: fileFilter
 }).single('submission');
 
+// Avatar upload configuration
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const folder = 'uploads/avatars/';
+    const fullPath = path.join(__dirname, '..', folder);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+    cb(null, fullPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const avatarFileFilter = (req, file, cb) => {
+  const allowedTypes = /jpg|jpeg|png|gif/;
+  const extname = path.extname(file.originalname).toLowerCase().substring(1);
+  
+  if (allowedTypes.test(extname)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPG, JPEG, PNG, and GIF are allowed.'));
+  }
+};
+
+export const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max
+  },
+  fileFilter: avatarFileFilter
+}).single('avatar');
+

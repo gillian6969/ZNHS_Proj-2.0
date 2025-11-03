@@ -97,6 +97,12 @@ export default function Icon({ name, className = "w-5 h-5", color = "currentColo
         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
       </svg>
     ),
+    camera: (
+      <svg className={className} fill={color} viewBox="0 0 24 24">
+        <path d="M12 12m-3.2 0a3.2 3.2 0 1 1 6.4 0a3.2 3.2 0 1 1-6.4 0"/>
+        <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+      </svg>
+    ),
     upload: (
       <svg className={className} fill={color} viewBox="0 0 24 24">
         <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
@@ -152,6 +158,21 @@ export default function Icon({ name, className = "w-5 h-5", color = "currentColo
     filter: (
       <svg className={className} fill={color} viewBox="0 0 24 24">
         <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+      </svg>
+    ),
+    more: (
+      <svg className={className} fill={color} viewBox="0 0 24 24">
+        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+      </svg>
+    ),
+    'arrow-up': (
+      <svg className={className} fill="none" stroke={color} viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7"/>
+      </svg>
+    ),
+    'arrow-down': (
+      <svg className={className} fill="none" stroke={color} viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
       </svg>
     ),
   };

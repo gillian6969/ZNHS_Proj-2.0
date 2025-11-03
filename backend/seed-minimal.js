@@ -42,7 +42,7 @@ const seedDatabase = async () => {
       idNumber: 'ADM-2024-001',
       passwordHash: adminPassword,
       role: 'admin',
-      subject: 'Administration',
+      subjects: ['Administration'],
       contact: '09123456789',
       assignedClasses: [],
     });

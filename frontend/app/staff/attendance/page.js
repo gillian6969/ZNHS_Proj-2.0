@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Icon from '@/components/Icon';
+import Toast from '@/components/Toast';
 import { classAPI, attendanceAPI } from '@/utils/api';
 import Loading from '@/components/Loading';
 
@@ -22,8 +23,11 @@ export default function StaffAttendance() {
   const [selectedClass, setSelectedClass] = useState('');
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [existingAttendance, setExistingAttendance] = useState({}); // Track existing record IDs
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState({}); // Track which student is currently saving
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [toast, setToast] = useState({ isOpen: false, message: '', type: 'success' });
 
   useEffect(() => {
     fetchClasses();
@@ -34,6 +38,12 @@ export default function StaffAttendance() {
       fetchStudents();
     }
   }, [selectedClass]);
+
+  useEffect(() => {
+    if (selectedClass && date) {
+      fetchExistingAttendance();
+    }
+  }, [selectedClass, date]);
 
   const fetchClasses = async () => {
     try {
@@ -53,61 +63,165 @@ export default function StaffAttendance() {
     try {
       const classData = await classAPI.getById(selectedClass);
       setStudents(classData.data.students);
-      
-      // Initialize attendance with 'present'
-      const initialAttendance = {};
-      classData.data.students.forEach(student => {
-        initialAttendance[student._id] = 'present';
-      });
-      setAttendance(initialAttendance);
     } catch (error) {
       console.error('Error fetching students:', error);
     }
   };
 
-  const handleAttendanceChange = (studentId, status) => {
+  const fetchExistingAttendance = async () => {
+    try {
+      if (!selectedClass || !date) return;
+      
+      const classData = await classAPI.getById(selectedClass);
+      const studentIds = classData.data.students.map(s => s._id);
+      
+      // Fetch existing attendance for all students on this date
+      const attendanceMap = {};
+      const attendanceIdMap = {};
+      
+      // Initialize all students with 'present'
+      classData.data.students.forEach(student => {
+        attendanceMap[student._id] = 'present';
+      });
+      
+      // Fetch existing records
+      const promises = studentIds.map(async (studentId) => {
+        try {
+          const { data } = await attendanceAPI.getAll({ 
+            studentId, 
+            date: date
+          });
+          
+          if (data && data.length > 0) {
+            // Get the record for this specific date (backend now returns correctly filtered)
+            const record = data[0]; // Should only be one record for this date after backend fix
+            
+            if (record) {
+              attendanceMap[studentId] = record.status;
+              attendanceIdMap[studentId] = record._id;
+            }
+          }
+        } catch (err) {
+          console.error(`Error fetching attendance for student ${studentId}:`, err);
+        }
+      });
+      
+      await Promise.all(promises);
+      setAttendance(attendanceMap);
+      setExistingAttendance(attendanceIdMap);
+    } catch (error) {
+      console.error('Error fetching existing attendance:', error);
+    }
+  };
+
+  const handleAttendanceChange = useCallback(async (studentId, status) => {
+    // Get previous status before updating
+    const prevStatus = attendance[studentId] || 'present';
+    
+    // Update local state immediately for responsive UI
     setAttendance(prev => ({
       ...prev,
       [studentId]: status,
     }));
-  };
+    
+    setSaving(prev => ({ ...prev, [studentId]: true }));
+    
+    try {
+      // Auto-save the attendance change
+      const record = {
+        studentId,
+        date: date,
+        status: status,
+      };
+      
+      await attendanceAPI.create(record);
+      
+      // Refresh attendance for this student to get updated status
+      const { data } = await attendanceAPI.getAll({ 
+        studentId, 
+        date: date
+      });
+      
+      if (data && data.length > 0) {
+        // Find the record for this specific date
+        const savedRecord = data.find(a => {
+          const recordDate = new Date(a.date).toISOString().split('T')[0];
+          return recordDate === date;
+        });
+        
+        if (savedRecord) {
+          // Update the attendance status from the saved record
+          setAttendance(prev => ({
+            ...prev,
+            [studentId]: savedRecord.status,
+          }));
+          
+          setExistingAttendance(prev => ({
+            ...prev,
+            [studentId]: savedRecord._id,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+      
+      // Get student name for error message
+      const student = students.find(s => s._id === studentId);
+      setToast({ 
+        isOpen: true, 
+        message: `Failed to save attendance for ${student?.name || 'student'}`, 
+        type: 'error' 
+      });
+      // Revert to previous status on error
+      setAttendance(prev => ({
+        ...prev,
+        [studentId]: prevStatus,
+      }));
+    } finally {
+      setSaving(prev => ({ ...prev, [studentId]: false }));
+    }
+  }, [date, attendance, students]);
 
-  const handleMarkAll = (status) => {
+  const handleMarkAll = async (status) => {
     const newAttendance = {};
     students.forEach(student => {
       newAttendance[student._id] = status;
     });
     setAttendance(newAttendance);
-  };
-
-  const handleSubmit = async () => {
+    
+    // Auto-save all changes
     try {
       const attendanceRecords = students.map(student => ({
         studentId: student._id,
         date: date,
-        status: attendance[student._id] || 'present',
+        status: status,
       }));
 
       await Promise.all(
         attendanceRecords.map(record => attendanceAPI.create(record))
       );
-
-      alert('Attendance saved successfully!');
+      
+      setToast({ 
+        isOpen: true, 
+        message: `All students marked as ${status}`, 
+        type: 'success' 
+      });
+      
+      // Refresh existing attendance IDs
+      await fetchExistingAttendance();
     } catch (error) {
-      alert('Failed to save attendance');
+      console.error('Error saving attendance:', error);
+      setToast({ 
+        isOpen: true, 
+        message: 'Failed to save attendance', 
+        type: 'error' 
+      });
     }
   };
 
   return (
     <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-      <ModernSidebar menuItems={staffMenu}>
-        <div className="flex justify-between items-center mb-5">
-          <h1>Mark Attendance</h1>
-          <button onClick={handleSubmit} className="btn-primary flex items-center gap-2">
-            <Icon name="save" className="w-4 h-4" />
-            Save Attendance
-          </button>
-        </div>
+      <ModernSidebar menuItems={staffMenu} pageTitle="Attendance Management">
 
         {loading ? (
           <Loading />
@@ -166,16 +280,22 @@ export default function StaffAttendance() {
                       <td className="font-medium">{student.idNumber}</td>
                       <td>{student.name}</td>
                       <td>
-                        <select
-                          value={attendance[student._id] || 'present'}
-                          onChange={(e) => handleAttendanceChange(student._id, e.target.value)}
-                          className="input-field py-1"
-                        >
-                          <option value="present">Present</option>
-                          <option value="absent">Absent</option>
-                          <option value="late">Late</option>
-                          <option value="excused">Excused</option>
-                        </select>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={attendance[student._id] || 'present'}
+                            onChange={(e) => handleAttendanceChange(student._id, e.target.value)}
+                            className="input-field py-1"
+                            disabled={saving[student._id]}
+                          >
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="late">Late</option>
+                            <option value="excused">Excused</option>
+                          </select>
+                          {saving[student._id] && (
+                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -184,6 +304,13 @@ export default function StaffAttendance() {
             </div>
           </>
         )}
+
+        <Toast
+          isOpen={toast.isOpen}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, isOpen: false })}
+        />
       </ModernSidebar>
     </ProtectedRoute>
   );

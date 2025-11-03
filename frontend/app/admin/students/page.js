@@ -6,8 +6,10 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Icon from '@/components/Icon';
-import { studentAPI } from '@/utils/api';
+import Toast from '@/components/Toast';
+import { studentAPI, gradeAPI, attendanceAPI } from '@/utils/api';
 import Loading from '@/components/Loading';
+import { GRADE_LEVELS, SECTIONS } from '@/utils/constants';
 
 const adminMenu = [
   { label: 'Dashboard', href: '/admin/dashboard', iconName: 'dashboard' },
@@ -15,6 +17,9 @@ const adminMenu = [
   { label: 'Staff', href: '/admin/staff', iconName: 'teacher' },
   { label: 'Classes', href: '/admin/classes', iconName: 'class' },
   { label: 'Events', href: '/admin/events', iconName: 'event' },
+  { label: 'Grades', href: '/admin/grades', iconName: 'grades' },
+  { label: 'Attendance', href: '/admin/attendance', iconName: 'calendar' },
+  { label: 'Profile', href: '/staff/profile', iconName: 'user' },
   { label: 'Log Out', action: 'logout', iconName: 'logout' },
 ];
 
@@ -26,11 +31,18 @@ export default function AdminStudents() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentGrades, setStudentGrades] = useState([]);
+  const [studentAttendance, setStudentAttendance] = useState([]);
+  const [loadingStudentData, setLoadingStudentData] = useState(false);
   const [filters, setFilters] = useState({
     grade: '',
     section: '',
     search: '',
   });
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [showFilters, setShowFilters] = useState(false);
+  const [toast, setToast] = useState({ isOpen: false, message: '', type: 'success' });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -48,7 +60,7 @@ export default function AdminStudents() {
 
   useEffect(() => {
     applyFilters();
-  }, [filters, students]);
+  }, [filters, sortBy, sortOrder, students]);
 
   const fetchStudents = async () => {
     try {
@@ -70,7 +82,7 @@ export default function AdminStudents() {
     }
 
     if (filters.section) {
-      filtered = filtered.filter(s => s.section?.toLowerCase().includes(filters.section.toLowerCase()));
+      filtered = filtered.filter(s => s.section === filters.section);
     }
 
     if (filters.search) {
@@ -80,6 +92,36 @@ export default function AdminStudents() {
         s.email.toLowerCase().includes(filters.search.toLowerCase())
       );
     }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'idNumber':
+          aValue = a.idNumber.toLowerCase();
+          bValue = b.idNumber.toLowerCase();
+          break;
+        case 'grade':
+          aValue = (a.gradeLevel || '').toLowerCase();
+          bValue = (b.gradeLevel || '').toLowerCase();
+          break;
+        case 'section':
+          aValue = (a.section || '').toLowerCase();
+          bValue = (b.section || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
 
     setFilteredStudents(filtered);
   };
@@ -102,12 +144,12 @@ export default function AdminStudents() {
     e.preventDefault();
     try {
       await studentAPI.create(formData);
-      alert('Student created successfully!');
+      setToast({ isOpen: true, message: 'Student created successfully! ✓', type: 'success' });
       setIsModalOpen(false);
       resetForm();
       fetchStudents();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to create student');
+      setToast({ isOpen: true, message: error.response?.data?.message || 'Failed to create student', type: 'error' });
     }
   };
 
@@ -116,16 +158,32 @@ export default function AdminStudents() {
     
     try {
       await studentAPI.delete(selectedStudent._id);
-      alert('Student deleted successfully!');
+      setToast({ isOpen: true, message: 'Student deleted successfully! ✓', type: 'success' });
       fetchStudents();
     } catch (error) {
-      alert('Failed to delete student');
+      setToast({ isOpen: true, message: 'Failed to delete student', type: 'error' });
     }
   };
 
-  const viewStudent = (student) => {
+  const viewStudent = async (student) => {
     setSelectedStudent(student);
     setIsViewModalOpen(true);
+    setLoadingStudentData(true);
+    
+    try {
+      // Fetch grades and attendance for the student
+      const [gradesRes, attendanceRes] = await Promise.all([
+        gradeAPI.getAll({ studentId: student._id }),
+        attendanceAPI.getAll({ studentId: student._id }),
+      ]);
+      
+      setStudentGrades(gradesRes.data || []);
+      setStudentAttendance(attendanceRes.data || []);
+    } catch (error) {
+      console.error('Error fetching student data:', error);
+    } finally {
+      setLoadingStudentData(false);
+    }
   };
 
   const openDeleteModal = (student) => {
@@ -139,7 +197,7 @@ export default function AdminStudents() {
       email: '',
       idNumber: '',
       password: '',
-      gradeLevel: 'Grade 7',
+      gradeLevel: GRADE_LEVELS[0],
       section: '',
       contact: '',
       address: '',
@@ -150,12 +208,19 @@ export default function AdminStudents() {
     setFilters({ grade: '', section: '', search: '' });
   };
 
+  const handleSortChange = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={['admin']}>
-      <ModernSidebar menuItems={adminMenu}>
-        {/* Page Header */}
-        <div className="flex justify-between items-center mb-5">
-          <h1>Manage Students</h1>
+      <ModernSidebar menuItems={adminMenu} pageTitle="Manage Students">
+        <div className="flex justify-end items-center mb-5">
           <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
             <Icon name="add" className="w-4 h-4" />
             Add Student
@@ -166,62 +231,101 @@ export default function AdminStudents() {
           <Loading />
         ) : (
           <>
-            {/* Filters */}
-            <div className="card mb-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Icon name="filter" className="w-5 h-5 text-gray-600" />
-                <h3>Filters</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="input-label">Grade Level</label>
-                  <select
-                    name="grade"
-                    value={filters.grade}
-                    onChange={handleFilterChange}
-                    className="input-field"
-                  >
-                    <option value="">All Grades</option>
-                    {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(grade => (
-                      <option key={grade} value={grade}>{grade}</option>
-                    ))}
-                  </select>
+            {/* Students Table */}
+            <div className="table-container">
+              {/* Filter Toggle Button - Attached to table */}
+              <div className="flex justify-between items-center mb-3 pb-3 border-b">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Students</h3>
+                  <span className="text-xs text-gray-500">
+                    ({filteredStudents.length} of {students.length})
+                  </span>
                 </div>
-                <div>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title={showFilters ? "Hide Filters" : "Show Filters"}
+                >
+                  <Icon name="more" className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+
+              {/* Collapsible Filters */}
+              {showFilters && (
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+                    <div>
+                      <label className="input-label">Grade Level</label>
+                      <select
+                        name="grade"
+                        value={filters.grade}
+                        onChange={handleFilterChange}
+                        className="input-field"
+                      >
+                        <option value="">All Grades</option>
+                        {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(grade => (
+                          <option key={grade} value={grade}>{grade}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                   <label className="input-label">Section</label>
-                  <input
-                    type="text"
+                  <select
                     name="section"
                     value={filters.section}
                     onChange={handleFilterChange}
                     className="input-field"
-                    placeholder="Enter section..."
-                  />
+                  >
+                    <option value="">All Sections</option>
+                    {SECTIONS.map(section => (
+                      <option key={section} value={section}>{section}</option>
+                    ))}
+                  </select>
+                    </div>
+                    <div>
+                      <label className="input-label">Search</label>
+                      <input
+                        type="text"
+                        name="search"
+                        value={filters.search}
+                        onChange={handleFilterChange}
+                        className="input-field"
+                        placeholder="Name, ID, or email..."
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button onClick={clearFilters} className="btn-outline w-full">
+                        Clear Filters
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="input-label text-sm">Sort by:</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => handleSortChange(e.target.value)}
+                      className="input-field text-sm"
+                    >
+                      <option value="name">Name</option>
+                      <option value="idNumber">ID Number</option>
+                      <option value="grade">Grade</option>
+                      <option value="section">Section</option>
+                    </select>
+                    <button
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className="btn-outline flex items-center gap-1 text-sm px-3 py-1.5"
+                      title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+                    >
+                      <Icon name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} className="w-4 h-4" />
+                      {sortOrder === 'asc' ? 'Asc' : 'Desc'}
+                    </button>
+                    <button onClick={clearFilters} className="btn-outline text-sm px-3 py-1.5 ml-auto">
+                      Clear All
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="input-label">Search</label>
-                  <input
-                    type="text"
-                    name="search"
-                    value={filters.search}
-                    onChange={handleFilterChange}
-                    className="input-field"
-                    placeholder="Name, ID, or email..."
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button onClick={clearFilters} className="btn-outline w-full">
-                    Clear Filters
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Showing {filteredStudents.length} of {students.length} students
-              </p>
-            </div>
+              )}
 
-            {/* Students Table */}
-            <div className="table-container">
               <table>
                 <thead>
                   <tr>
@@ -353,15 +457,18 @@ export default function AdminStudents() {
               </div>
               <div>
                 <label className="input-label">Section *</label>
-                <input
-                  type="text"
+                <select
                   name="section"
                   value={formData.section}
                   onChange={handleChange}
                   className="input-field"
-                  placeholder="e.g., Einstein"
                   required
-                />
+                >
+                  <option value="">Select Section</option>
+                  {SECTIONS.map(section => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -410,11 +517,17 @@ export default function AdminStudents() {
         {/* View Student Modal */}
         <Modal
           isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setStudentGrades([]);
+            setStudentAttendance([]);
+          }}
           title="Student Information"
+          size="xl"
         >
           {selectedStudent && (
-            <div className="space-y-4">
+            <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+              {/* Basic Info */}
               <div className="flex items-center gap-4 pb-4 border-b">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                   <Icon name="user" className="w-8 h-8 text-white" />
@@ -456,8 +569,154 @@ export default function AdminStudents() {
                 <p className="text-sm">{new Date(selectedStudent.createdAt).toLocaleDateString()}</p>
               </div>
 
+              {/* Grades Section */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Icon name="grades" className="w-5 h-5" />
+                  Grades
+                </h4>
+                {loadingStudentData ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">Loading grades...</p>
+                  </div>
+                ) : studentGrades.length > 0 ? (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Subject</th>
+                          <th className="text-center">Q1</th>
+                          <th className="text-center">Q2</th>
+                          <th className="text-center">Q3</th>
+                          <th className="text-center">Q4</th>
+                          <th className="text-center">Final</th>
+                          <th className="text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {studentGrades.map((grade) => (
+                          <tr key={grade._id}>
+                            <td className="font-medium">{grade.subject}</td>
+                            <td className="text-center">{grade.q1 || '-'}</td>
+                            <td className="text-center">{grade.q2 || '-'}</td>
+                            <td className="text-center">{grade.q3 || '-'}</td>
+                            <td className="text-center">{grade.q4 || '-'}</td>
+                            <td className="text-center font-bold">{grade.final || '-'}</td>
+                            <td className="text-center">
+                              {grade.final >= 75 ? (
+                                <span className="badge-success">Passed</span>
+                              ) : grade.final ? (
+                                <span className="badge-danger">Failed</span>
+                              ) : (
+                                <span className="badge-warning">Pending</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">No grades available</p>
+                )}
+              </div>
+
+              {/* Attendance Section */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Icon name="calendar" className="w-5 h-5" />
+                  Attendance
+                </h4>
+                {loadingStudentData ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">Loading attendance...</p>
+                  </div>
+                ) : studentAttendance.length > 0 ? (
+                  <>
+                    {/* Attendance Stats */}
+                    <div className="grid grid-cols-4 gap-3 mb-4">
+                      <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                        <p className="text-xs text-gray-600 mb-1">Present</p>
+                        <p className="text-lg font-bold text-green-700">
+                          {studentAttendance.filter(a => a.status === 'present').length}
+                        </p>
+                      </div>
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <p className="text-xs text-gray-600 mb-1">Late</p>
+                        <p className="text-lg font-bold text-yellow-700">
+                          {studentAttendance.filter(a => a.status === 'late').length}
+                        </p>
+                      </div>
+                      <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                        <p className="text-xs text-gray-600 mb-1">Absent</p>
+                        <p className="text-lg font-bold text-red-700">
+                          {studentAttendance.filter(a => a.status === 'absent').length}
+                        </p>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <p className="text-xs text-gray-600 mb-1">Excused</p>
+                        <p className="text-lg font-bold text-blue-700">
+                          {studentAttendance.filter(a => a.status === 'excused').length}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {studentAttendance.slice(0, 10).map((record) => (
+                            <tr key={record._id}>
+                              <td>
+                                {new Date(record.date).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </td>
+                              <td>
+                                {record.status === 'present' && (
+                                  <span className="badge-success">Present</span>
+                                )}
+                                {record.status === 'late' && (
+                                  <span className="badge-warning">Late</span>
+                                )}
+                                {record.status === 'absent' && (
+                                  <span className="badge-danger">Absent</span>
+                                )}
+                                {record.status === 'excused' && (
+                                  <span className="badge-info">Excused</span>
+                                )}
+                              </td>
+                              <td className="text-sm text-gray-600">{record.remarks || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {studentAttendance.length > 10 && (
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                          Showing latest 10 of {studentAttendance.length} records
+                        </p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">No attendance records available</p>
+                )}
+              </div>
+
               <button
-                onClick={() => setIsViewModalOpen(false)}
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setStudentGrades([]);
+                  setStudentAttendance([]);
+                }}
                 className="btn-outline w-full mt-4"
               >
                 Close
@@ -474,6 +733,14 @@ export default function AdminStudents() {
           title="Delete Student"
           message={`Are you sure you want to delete "${selectedStudent?.name}"? This action cannot be undone.`}
           type="danger"
+        />
+
+        {/* Toast Notification */}
+        <Toast
+          isOpen={toast.isOpen}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, isOpen: false })}
         />
       </ModernSidebar>
     </ProtectedRoute>

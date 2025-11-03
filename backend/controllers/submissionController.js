@@ -50,7 +50,11 @@ export const getSubmissionById = async (req, res) => {
 // @access  Private (Student)
 export const createSubmission = async (req, res) => {
   try {
-    const { materialId, fileUrl, fileName, fileSize, comments } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload a file' });
+    }
+
+    const { materialId, comments } = req.body;
 
     // Check if material exists
     const material = await Material.findById(materialId);
@@ -71,13 +75,16 @@ export const createSubmission = async (req, res) => {
     // Check if late
     const isLate = material.dueDate && new Date() > new Date(material.dueDate);
 
+    // Generate file URL
+    const fileUrl = `/uploads/submissions/${req.file.filename}`;
+
     const submission = await Submission.create({
       materialId,
       studentId: req.user._id,
       fileUrl,
-      fileName,
-      fileSize,
-      comments,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      comments: comments || '',
       status: isLate ? 'late' : 'submitted',
     });
 
@@ -133,12 +140,18 @@ export const gradeSubmission = async (req, res) => {
     const { score, feedback } = req.body;
 
     submission.score = score;
-    submission.feedback = feedback;
+    submission.feedback = feedback || '';
     submission.status = 'graded';
     submission.gradedAt = new Date();
     submission.gradedBy = req.user._id;
 
-    const gradedSubmission = await submission.save();
+    await submission.save();
+
+    // Return populated submission with all data
+    const gradedSubmission = await Submission.findById(submission._id)
+      .populate('materialId', 'title subject dueDate type')
+      .populate('studentId', 'name idNumber email')
+      .populate('gradedBy', 'name email');
 
     res.json(gradedSubmission);
   } catch (error) {

@@ -116,3 +116,8 @@ export const exportAttendanceToPDF = (attendance, studentName, stats) => {
   doc.save(`${studentName}_attendance.pdf`);
 };
 
+// Generic export to PDF function (wrapper for exportGradesToPDF)
+export const exportToPDF = (grades, studentName, title = 'Grades Report') => {
+  exportGradesToPDF(grades, studentName);
+};
+

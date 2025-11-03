@@ -13,7 +13,15 @@ export const getAllAttendance = async (req, res) => {
     if (status) query.status = status;
     
     if (date) {
-      query.date = new Date(date);
+      // Normalize date to start of day for comparison (same as createAttendance)
+      const queryDate = new Date(date);
+      queryDate.setHours(0, 0, 0, 0);
+      const nextDay = new Date(queryDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      query.date = {
+        $gte: queryDate,
+        $lt: nextDay
+      };
     } else if (startDate && endDate) {
       query.date = {
         $gte: new Date(startDate),
@@ -22,7 +30,7 @@ export const getAllAttendance = async (req, res) => {
     }
 
     const attendance = await Attendance.find(query)
-      .populate('studentId', 'name idNumber section')
+      .populate('studentId', 'name idNumber section gradeLevel')
       .sort({ date: -1 });
 
     res.json(attendance);
@@ -37,7 +45,7 @@ export const getAllAttendance = async (req, res) => {
 export const getAttendanceById = async (req, res) => {
   try {
     const attendance = await Attendance.findById(req.params.id)
-      .populate('studentId', 'name idNumber section');
+      .populate('studentId', 'name idNumber section gradeLevel');
     
     if (!attendance) {
       return res.status(404).json({ message: 'Attendance record not found' });
@@ -49,7 +57,7 @@ export const getAttendanceById = async (req, res) => {
   }
 };
 
-// @desc    Create attendance record
+// @desc    Create or update attendance record (prevent duplicates)
 // @route   POST /api/attendance
 // @access  Private (Staff/Admin)
 export const createAttendance = async (req, res) => {
@@ -62,14 +70,41 @@ export const createAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    const attendance = await Attendance.create({
+    // Normalize date to start of day for comparison
+    const attendanceDate = new Date(date || new Date());
+    attendanceDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(attendanceDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    // Check if attendance record already exists for this student and date
+    const existingAttendance = await Attendance.findOne({
       studentId,
-      date: date || new Date(),
-      status,
-      subject,
-      remarks,
-      markedBy: req.user._id,
+      date: {
+        $gte: attendanceDate,
+        $lt: nextDay
+      }
     });
+
+    let attendance;
+
+    if (existingAttendance) {
+      // Update existing record
+      existingAttendance.status = status;
+      if (subject !== undefined) existingAttendance.subject = subject;
+      if (remarks !== undefined) existingAttendance.remarks = remarks;
+      existingAttendance.markedBy = req.user._id;
+      attendance = await existingAttendance.save();
+    } else {
+      // Create new record
+      attendance = await Attendance.create({
+        studentId,
+        date: attendanceDate,
+        status,
+        subject,
+        remarks,
+        markedBy: req.user._id,
+      });
+    }
 
     res.status(201).json(attendance);
   } catch (error) {

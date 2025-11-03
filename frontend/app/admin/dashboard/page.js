@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Icon from '@/components/Icon';
-import { studentAPI, staffAPI, classAPI, eventAPI } from '@/utils/api';
-import { ClassPerformanceChart, DistributionChart } from '@/components/Charts';
+import { useAuth } from '@/context/AuthContext';
+import { studentAPI, staffAPI, classAPI, eventAPI, gradeAPI, attendanceAPI } from '@/utils/api';
+import { ClassPerformanceChart, GradesChart, AttendancePieChart, AttendanceTrendChart, QuarterGradesChart } from '@/components/Charts';
 import Loading from '@/components/Loading';
+import { GRADE_LEVELS, SECTIONS } from '@/utils/constants';
 
 const adminMenu = [
   { label: 'Dashboard', href: '/admin/dashboard', iconName: 'dashboard' },
@@ -14,15 +16,26 @@ const adminMenu = [
   { label: 'Staff', href: '/admin/staff', iconName: 'teacher' },
   { label: 'Classes', href: '/admin/classes', iconName: 'class' },
   { label: 'Events', href: '/admin/events', iconName: 'event' },
+  { label: 'Grades', href: '/admin/grades', iconName: 'grades' },
+  { label: 'Attendance', href: '/admin/attendance', iconName: 'calendar' },
+  { label: 'Profile', href: '/staff/profile', iconName: 'user' },
   { label: 'Log Out', action: 'logout', iconName: 'logout' },
 ];
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [staff, setStaff] = useState([]);
   const [classes, setClasses] = useState([]);
   const [events, setEvents] = useState([]);
+  const [grades, setGrades] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [gradeLevelFilter, setGradeLevelFilter] = useState('all');
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [quarterFilter, setQuarterFilter] = useState('all');
+  const [attendanceFilter, setAttendanceFilter] = useState('week');
 
   useEffect(() => {
     fetchDashboardData();
@@ -30,17 +43,21 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [studentsRes, staffRes, classesRes, eventsRes] = await Promise.all([
+      const [studentsRes, staffRes, classesRes, eventsRes, gradesRes, attendanceRes] = await Promise.all([
         studentAPI.getAll(),
         staffAPI.getAll(),
         classAPI.getAll(),
         eventAPI.getAll(),
+        gradeAPI.getAll(),
+        attendanceAPI.getAll(),
       ]);
 
       setStudents(studentsRes.data);
       setStaff(staffRes.data);
       setClasses(classesRes.data);
       setEvents(eventsRes.data);
+      setGrades(gradesRes.data);
+      setAttendance(attendanceRes.data || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -48,10 +65,255 @@ export default function AdminDashboard() {
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  // Apply all filters to grades
+  const applyAllFilters = (gradesList) => {
+    let filtered = [...gradesList];
+    
+    if (gradeLevelFilter !== 'all') {
+      filtered = filtered.filter(g => 
+        g.studentId?.gradeLevel === gradeLevelFilter
+      );
+    }
+    
+    if (sectionFilter !== 'all') {
+      filtered = filtered.filter(g => 
+        g.studentId?.section === sectionFilter
+      );
+    }
+    
+    if (subjectFilter !== 'all') {
+      filtered = filtered.filter(g => 
+        g.subject === subjectFilter
+      );
+    }
+    
+    if (quarterFilter !== 'all') {
+      filtered = filtered.filter(g => {
+        const quarter = quarterFilter.toLowerCase();
+        const quarterValue = g[quarter];
+        return quarterValue && quarterValue > 0;
+      });
+    }
+    
+    return filtered;
+  };
+
+  // Prepare class performance chart data
+  const prepareClassPerformanceData = () => {
+    let filteredGrades = applyAllFilters(grades);
+
+    const gradeLevels = GRADE_LEVELS;
+    const averages = gradeLevels.map(level => {
+      const levelGrades = filteredGrades.filter(g => g.studentId?.gradeLevel === level);
+      if (levelGrades.length === 0) return 0;
+      
+      let total = 0;
+      let count = 0;
+      
+      levelGrades.forEach(g => {
+        if (quarterFilter === 'all') {
+          total += g.final || 0;
+          if (g.final && g.final > 0) count++;
+        } else {
+          const quarter = quarterFilter.toLowerCase();
+          const quarterValue = g[quarter];
+          if (quarterValue && quarterValue > 0) {
+            total += quarterValue;
+            count++;
+          }
+        }
+      });
+      
+      return count > 0 ? parseFloat((total / count).toFixed(1)) : 0;
+    });
+
+    return {
+      labels: gradeLevels,
+      values: averages,
+    };
+  };
+
+  // Prepare attendance trend chart data (with grade/section filter)
+  const prepareAttendanceTrendData = () => {
+    const now = new Date();
+    let startDate = new Date();
+    
+    if (attendanceFilter === 'week') {
+      startDate.setDate(now.getDate() - 7);
+    } else {
+      startDate.setDate(now.getDate() - 30);
+    }
+
+    let filteredAttendance = attendance.filter(a => {
+      const recordDate = new Date(a.date);
+      return recordDate >= startDate && recordDate <= now;
+    });
+
+    // Apply grade and section filters
+    if (gradeLevelFilter !== 'all') {
+      filteredAttendance = filteredAttendance.filter(a => 
+        a.studentId?.gradeLevel === gradeLevelFilter
+      );
+    }
+    
+    if (sectionFilter !== 'all') {
+      filteredAttendance = filteredAttendance.filter(a => 
+        a.studentId?.section === sectionFilter
+      );
+    }
+
+    // Calculate totals for pie chart
+    const totals = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    };
+
+    filteredAttendance.forEach(a => {
+      if (a.status === 'present') {
+        totals.present++;
+      } else if (a.status === 'absent') {
+        totals.absent++;
+      } else if (a.status === 'late') {
+        totals.late++;
+      } else if (a.status === 'excused') {
+        totals.excused++;
+      }
+    });
+
+    return totals;
+  };
+
+  // Prepare grades by subject chart data
+  const prepareGradesBySubjectData = () => {
+    let filteredGrades = applyAllFilters(grades);
+
+    // If subject filter is not 'all', only show that subject
+    // Otherwise show all subjects
+    const subjects = subjectFilter !== 'all' 
+      ? [subjectFilter]
+      : [...new Set(filteredGrades.map(g => g.subject).filter(Boolean))].sort();
+    
+    const averages = subjects.map(subject => {
+      const subjectGrades = filteredGrades.filter(g => g.subject === subject);
+      if (subjectGrades.length === 0) return 0;
+      
+      let total = 0;
+      let count = 0;
+      
+      subjectGrades.forEach(g => {
+        if (quarterFilter === 'all') {
+          total += g.final || 0;
+          if (g.final && g.final > 0) count++;
+        } else {
+          const quarter = quarterFilter.toLowerCase();
+          const quarterValue = g[quarter];
+          if (quarterValue && quarterValue > 0) {
+            total += quarterValue;
+            count++;
+          }
+        }
+      });
+      
+      return count > 0 ? parseFloat((total / count).toFixed(1)) : 0;
+    });
+
+    return {
+      labels: subjects,
+      values: averages,
+    };
+  };
+
+  // Prepare quarter grades comparison data (aggregate by subject)
+  const prepareQuarterGradesData = () => {
+    const filteredGrades = applyAllFilters(grades);
+    
+    // Group by subject and calculate averages for each quarter
+    const subjectMap = {};
+    
+    filteredGrades.forEach(grade => {
+      const subject = grade.subject;
+      if (!subject) return;
+      
+      if (!subjectMap[subject]) {
+        subjectMap[subject] = {
+          subject: subject,
+          q1: [],
+          q2: [],
+          q3: [],
+          q4: [],
+        };
+      }
+      
+      if (grade.q1 && grade.q1 > 0) subjectMap[subject].q1.push(grade.q1);
+      if (grade.q2 && grade.q2 > 0) subjectMap[subject].q2.push(grade.q2);
+      if (grade.q3 && grade.q3 > 0) subjectMap[subject].q3.push(grade.q3);
+      if (grade.q4 && grade.q4 > 0) subjectMap[subject].q4.push(grade.q4);
+    });
+    
+    // Convert to array with averaged values
+    const aggregatedData = Object.values(subjectMap).map(subj => ({
+      subject: subj.subject,
+      q1: subj.q1.length > 0 ? subj.q1.reduce((a, b) => a + b, 0) / subj.q1.length : 0,
+      q2: subj.q2.length > 0 ? subj.q2.reduce((a, b) => a + b, 0) / subj.q2.length : 0,
+      q3: subj.q3.length > 0 ? subj.q3.reduce((a, b) => a + b, 0) / subj.q3.length : 0,
+      q4: subj.q4.length > 0 ? subj.q4.reduce((a, b) => a + b, 0) / subj.q4.length : 0,
+    }));
+    
+    return aggregatedData;
+  };
+
+  // Get available sections from students
+  const getAvailableSections = () => {
+    const sections = new Set();
+    students.forEach(student => {
+      if (student.section) sections.add(student.section);
+    });
+    return Array.from(sections).sort();
+  };
+
+  // Get available subjects from grades
+  const getAvailableSubjects = () => {
+    const subjects = new Set();
+    grades.forEach(grade => {
+      if (grade.subject) subjects.add(grade.subject);
+    });
+    return Array.from(subjects).sort();
+  };
+
   return (
     <ProtectedRoute allowedRoles={['admin']}>
-      <ModernSidebar menuItems={adminMenu}>
-        <h1 className="mb-5">Admin Dashboard</h1>
+      <ModernSidebar menuItems={adminMenu} pageTitle="Admin Dashboard">
+        {/* Greeting Banner */}
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-700 rounded-2xl p-8 mb-8 shadow-xl relative overflow-hidden">
+          {/* School Logo Watermark */}
+          <div className="absolute right-10 left-10 top-0 bottom-0 flex items-center justify-end opacity-[.50] pointer-events-none">
+            <img 
+              src="/znhslogo.png" 
+              alt="ZNHS Logo" 
+              className="w-[300%] h-[300%] object-contain translate-x-1/4 -rotate-12"
+            />
+          </div>
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                {getGreeting()}, {user?.name?.split(' ')[0] || 'Admin'}! 👋
+              </h1>
+              <p className="text-indigo-100 text-lg">
+                Managing excellence, one day at a time
+              </p>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
           <Loading />
@@ -108,21 +370,111 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Global Filters */}
+            <div className="card mb-5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="text-sm font-medium text-gray-700">Filters:</label>
+                <select
+                  value={gradeLevelFilter}
+                  onChange={(e) => setGradeLevelFilter(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Grade Levels</option>
+                  {GRADE_LEVELS.map(level => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+                <select
+                  value={sectionFilter}
+                  onChange={(e) => setSectionFilter(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Sections</option>
+                  {getAvailableSections().map(section => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
+                </select>
+                <select
+                  value={subjectFilter}
+                  onChange={(e) => setSubjectFilter(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Subjects</option>
+                  {getAvailableSubjects().map(subject => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))}
+                </select>
+                <select
+                  value={quarterFilter}
+                  onChange={(e) => setQuarterFilter(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Quarters</option>
+                  <option value="q1">Q1</option>
+                  <option value="q2">Q2</option>
+                  <option value="q3">Q3</option>
+                  <option value="q4">Q4</option>
+                </select>
+              </div>
+            </div>
+
             {/* Charts */}
             <div className="grid lg:grid-cols-2 gap-4 mb-5">
               <div className="card">
                 <h3 className="mb-3">Performance by Grade Level</h3>
-                <ClassPerformanceChart />
+                {grades.length > 0 && prepareClassPerformanceData().values.some(v => v > 0) ? (
+                  <ClassPerformanceChart data={prepareClassPerformanceData()} />
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-gray-500">
+                    <p>No grades data available</p>
+                  </div>
+                )}
               </div>
 
               <div className="card">
-                <h3 className="mb-3">Student Distribution</h3>
-                <DistributionChart
-                  data={{
-                    labels: ['Grade 7-8', 'Grade 9-10', 'Grade 11-12'],
-                    values: [35, 40, 25],
-                  }}
-                />
+                <h3 className="mb-3">Average Grades by Subject</h3>
+                {grades.length > 0 && prepareGradesBySubjectData().labels.length > 0 ? (
+                  <GradesChart data={prepareGradesBySubjectData()} />
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-gray-500">
+                    <p>No grades data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Additional Charts */}
+            <div className="grid lg:grid-cols-2 gap-4 mb-5">
+              <div className="card">
+                <div className="flex items-center justify-between mb-3">
+                  <h3>Attendance Overview</h3>
+                  <select
+                    value={attendanceFilter}
+                    onChange={(e) => setAttendanceFilter(e.target.value)}
+                    className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="week">Last 7 Days</option>
+                    <option value="month">Last 30 Days</option>
+                  </select>
+                </div>
+                {attendance.length > 0 ? (
+                  <AttendancePieChart data={prepareAttendanceTrendData()} />
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-gray-500">
+                    <p>No attendance data available</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="card">
+                <h3 className="mb-3">Quarter Grades Comparison</h3>
+                {grades.length > 0 && prepareQuarterGradesData().length > 0 ? (
+                  <QuarterGradesChart data={prepareQuarterGradesData()} />
+                ) : (
+                  <div className="h-80 flex items-center justify-center text-gray-500">
+                    <p>No grades data available</p>
+                  </div>
+                )}
               </div>
             </div>
 

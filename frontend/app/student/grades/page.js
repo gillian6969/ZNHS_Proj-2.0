@@ -5,34 +5,79 @@ import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Icon from '@/components/Icon';
 import { useAuth } from '@/context/AuthContext';
-import { gradeAPI } from '@/utils/api';
+import { gradeAPI, classAPI } from '@/utils/api';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import Loading from '@/components/Loading';
 
 const studentMenu = [
   { label: 'Dashboard', href: '/student/dashboard', iconName: 'dashboard' },
   { label: 'Grades', href: '/student/grades', iconName: 'grades' },
-  { label: 'Subjects', href: '/student/subjects', iconName: 'book' },
+  { label: 'Learning Material', href: '/student/subjects', iconName: 'book' },
   { label: 'Attendance', href: '/student/attendance', iconName: 'calendar' },
+  { label: 'Announcements', href: '/student/announcements', iconName: 'announcement' },
   { label: 'Profile', href: '/student/profile', iconName: 'user' },
   { label: 'Log Out', action: 'logout', iconName: 'logout' },
 ];
 
 export default function StudentGrades() {
   const { user } = useAuth();
-  const [grades, setGrades] = useState([]);
+  const [allSubjects, setAllSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchGrades();
+      fetchGradesAndSubjects();
     }
   }, [user]);
 
-  const fetchGrades = async () => {
+  const fetchGradesAndSubjects = async () => {
     try {
-      const { data } = await gradeAPI.getAll({ studentId: user._id });
-      setGrades(data);
+      // Fetch student's class to get all subjects
+      let subjectsWithTeachers = [];
+      if (user.classId) {
+        try {
+          const { data: classData } = await classAPI.getById(user.classId);
+          if (classData && classData.teachers) {
+            subjectsWithTeachers = classData.teachers.map(t => ({
+              subject: t.subject,
+              teacherName: t.teacherId?.name || 'N/A',
+              teacherId: t.teacherId?._id || t.teacherId,
+              _id: null, // No grade yet
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching class:', error);
+        }
+      }
+
+      // Fetch existing grades
+      const { data: gradesData } = await gradeAPI.getAll({ studentId: user._id });
+      
+      // Merge subjects with grades
+      const merged = subjectsWithTeachers.map(subject => {
+        const existingGrade = gradesData.find(g => g.subject === subject.subject);
+        if (existingGrade) {
+          return {
+            ...subject,
+            ...existingGrade,
+          };
+        }
+        return subject;
+      });
+
+      // Add any grades that don't match a subject (fallback)
+      gradesData.forEach(grade => {
+        if (!merged.find(m => m.subject === grade.subject)) {
+          merged.push({
+            subject: grade.subject,
+            teacherName: grade.createdBy?.name || 'N/A',
+            teacherId: grade.createdBy?._id,
+            ...grade,
+          });
+        }
+      });
+
+      setAllSubjects(merged);
     } catch (error) {
       console.error('Error fetching grades:', error);
     } finally {
@@ -40,33 +85,27 @@ export default function StudentGrades() {
     }
   };
 
-  const calculateAverage = () => {
-    if (grades.length === 0) return 0;
-    const total = grades.reduce((sum, grade) => sum + (grade.final || 0), 0);
-    return (total / grades.length).toFixed(2);
-  };
-
   const handleExportCSV = () => {
-    const exportData = grades.map(grade => ({
-      Subject: grade.subject,
-      'Quarter 1': grade.q1 || '-',
-      'Quarter 2': grade.q2 || '-',
-      'Quarter 3': grade.q3 || '-',
-      'Quarter 4': grade.q4 || '-',
-      'Final Grade': grade.final || '-',
+    const exportData = allSubjects.map(item => ({
+      Subject: item.subject,
+      Teacher: item.teacherName,
+      'Quarter 1': item.q1 || '-',
+      'Quarter 2': item.q2 || '-',
+      'Quarter 3': item.q3 || '-',
+      'Quarter 4': item.q4 || '-',
+      'Final Grade': item.final || '-',
     }));
     exportToCSV(exportData, `grades-${user.name}`);
   };
 
   const handleExportPDF = () => {
-    exportToPDF(grades, user.name, 'Grades Report');
+    exportToPDF(allSubjects, user.name, 'Grades Report');
   };
 
   return (
     <ProtectedRoute allowedRoles={['student']}>
-      <ModernSidebar menuItems={studentMenu}>
+      <ModernSidebar menuItems={studentMenu} pageTitle="My Grades">
         <div className="flex justify-between items-center mb-5">
-          <h1>My Grades</h1>
           <div className="flex gap-2">
             <button onClick={handleExportCSV} className="btn-secondary flex items-center gap-2">
               <Icon name="download" className="w-4 h-4" />
@@ -82,67 +121,52 @@ export default function StudentGrades() {
         {loading ? (
           <Loading />
         ) : (
-          <>
-            {/* Summary Card */}
-            <div className="card mb-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">General Average</p>
-                  <h2 className="text-3xl font-bold text-blue-600">{calculateAverage()}</h2>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500 mb-1">Total Subjects</p>
-                  <p className="text-2xl font-bold">{grades.length}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Grades Table */}
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Subject</th>
-                    <th className="text-center">Q1</th>
-                    <th className="text-center">Q2</th>
-                    <th className="text-center">Q3</th>
-                    <th className="text-center">Q4</th>
-                    <th className="text-center">Final</th>
-                    <th className="text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grades.length > 0 ? (
-                    grades.map((grade) => (
-                      <tr key={grade._id}>
-                        <td className="font-medium">{grade.subject}</td>
-                        <td className="text-center">{grade.q1 || '-'}</td>
-                        <td className="text-center">{grade.q2 || '-'}</td>
-                        <td className="text-center">{grade.q3 || '-'}</td>
-                        <td className="text-center">{grade.q4 || '-'}</td>
-                        <td className="text-center font-bold">{grade.final || '-'}</td>
-                        <td className="text-center">
-                          {grade.final >= 75 ? (
-                            <span className="badge-success">Passed</span>
-                          ) : grade.final ? (
-                            <span className="badge-danger">Failed</span>
-                          ) : (
-                            <span className="badge-warning">Pending</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="text-center py-8 text-gray-500">
-                        No grades available yet
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Teacher</th>
+                  <th className="text-center">Q1</th>
+                  <th className="text-center">Q2</th>
+                  <th className="text-center">Q3</th>
+                  <th className="text-center">Q4</th>
+                  <th className="text-center">Final</th>
+                  <th className="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allSubjects.length > 0 ? (
+                  allSubjects.map((item, index) => (
+                    <tr key={item._id || `subject-${index}`}>
+                      <td className="font-medium">{item.subject}</td>
+                      <td>{item.teacherName}</td>
+                      <td className="text-center">{item.q1 || '-'}</td>
+                      <td className="text-center">{item.q2 || '-'}</td>
+                      <td className="text-center">{item.q3 || '-'}</td>
+                      <td className="text-center">{item.q4 || '-'}</td>
+                      <td className="text-center font-bold">{item.final || '-'}</td>
+                      <td className="text-center">
+                        {item.final >= 75 ? (
+                          <span className="badge-success">Passed</span>
+                        ) : item.final ? (
+                          <span className="badge-danger">Failed</span>
+                        ) : (
+                          <span className="badge-warning">Pending</span>
+                        )}
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="text-center py-8 text-gray-500">
+                      No subjects available yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </ModernSidebar>
     </ProtectedRoute>

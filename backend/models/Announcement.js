@@ -14,6 +14,16 @@ const announcementSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  priority: {
+    type: String,
+    enum: ['normal', 'high', 'urgent'],
+    default: 'normal',
+  },
+  classId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class',
+    default: null, // null means all classes
+  },
   visibility: {
     type: String,
     enum: ['students', 'staff', 'all'],

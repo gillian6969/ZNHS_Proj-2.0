@@ -48,23 +48,31 @@ export const getMaterialById = async (req, res) => {
 // @access  Private (Teacher/Admin)
 export const createMaterial = async (req, res) => {
   try {
-    const { title, description, type, fileUrl, fileName, fileSize, subject, classId, dueDate } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload a file' });
+    }
+
+    const { title, description, materialType, subject, classId, dueDate } = req.body;
+
+    // Generate file URL
+    const fileUrl = `/uploads/materials/${req.file.filename}`;
 
     const material = await Material.create({
       title,
       description,
-      type,
+      type: materialType || 'document',
       fileUrl,
-      fileName,
-      fileSize,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
       subject,
       classId,
       uploadedBy: req.user._id,
-      dueDate,
+      dueDate: dueDate || null,
     });
 
     res.status(201).json(material);
   } catch (error) {
+    console.error('Material creation error:', error);
     res.status(500).json({ message: error.message });
   }
 };

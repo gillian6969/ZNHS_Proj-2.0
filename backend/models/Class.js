@@ -9,6 +9,7 @@ const classSchema = new mongoose.Schema({
   section: {
     type: String,
     required: true,
+    enum: ['Pilot', 'SSC', 'ICT', 'Section 1', 'Section 2', 'Section 3', 'Section 4', 'Section 5'],
     trim: true,
   },
   room: {

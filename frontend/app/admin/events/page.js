@@ -15,6 +15,9 @@ const adminMenu = [
   { label: 'Staff', href: '/admin/staff', iconName: 'teacher' },
   { label: 'Classes', href: '/admin/classes', iconName: 'class' },
   { label: 'Events', href: '/admin/events', iconName: 'event' },
+  { label: 'Grades', href: '/admin/grades', iconName: 'grades' },
+  { label: 'Attendance', href: '/admin/attendance', iconName: 'calendar' },
+  { label: 'Profile', href: '/staff/profile', iconName: 'user' },
   { label: 'Log Out', action: 'logout', iconName: 'logout' },
 ];
 
@@ -94,9 +97,8 @@ export default function AdminEvents() {
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
-      <ModernSidebar menuItems={adminMenu}>
+      <ModernSidebar menuItems={adminMenu} pageTitle="Manage Events">
         <div className="flex justify-between items-center mb-5">
-          <h1>Manage Events</h1>
           <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
             <Icon name="add" className="w-4 h-4" />
             Add Event

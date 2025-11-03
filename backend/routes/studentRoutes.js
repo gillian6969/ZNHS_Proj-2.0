@@ -8,8 +8,11 @@ import {
   getStudentGrades,
   getStudentAttendance,
   resetStudentPassword,
+  changeStudentPassword,
+  uploadStudentAvatar,
 } from '../controllers/studentController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { uploadAvatar } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -25,6 +28,8 @@ router.route('/:id')
 router.get('/:id/grades', protect, getStudentGrades);
 router.get('/:id/attendance', protect, getStudentAttendance);
 router.put('/:id/reset-password', protect, authorize('admin'), resetStudentPassword);
+router.put('/:id/change-password', protect, changeStudentPassword);
+router.post('/:id/avatar', protect, uploadAvatar, uploadStudentAvatar);
 
 export default router;
 

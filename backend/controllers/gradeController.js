@@ -14,7 +14,8 @@ export const getAllGrades = async (req, res) => {
     if (studentId) query.studentId = studentId;
 
     const grades = await Grade.find(query)
-      .populate('studentId', 'name idNumber section')
+      .populate('studentId', 'name idNumber section gradeLevel')
+      .populate('createdBy', 'name')
       .sort({ subject: 1 });
 
     res.json(grades);
@@ -63,17 +64,18 @@ export const createGrade = async (req, res) => {
     const grade = await Grade.create({
       studentId,
       subject,
-      q1,
-      q2,
-      q3,
-      q4,
-      final,
+      q1: q1 || 0,
+      q2: q2 || 0,
+      q3: q3 || 0,
+      q4: q4 || 0,
+      final: final || 0,
       schoolYear,
       createdBy: req.user._id,
     });
 
     res.status(201).json(grade);
   } catch (error) {
+    console.error('Grade creation error:', error);
     res.status(500).json({ message: error.message });
   }
 };

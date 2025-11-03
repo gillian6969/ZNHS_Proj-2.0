@@ -57,6 +57,10 @@ export const studentAPI = {
   getGrades: (id) => api.get(`/students/${id}/grades`),
   getAttendance: (id) => api.get(`/students/${id}/attendance`),
   resetPassword: (id, newPassword) => api.put(`/students/${id}/reset-password`, { newPassword }),
+  changePassword: (id, currentPassword, newPassword) => api.put(`/students/${id}/change-password`, { currentPassword, newPassword }),
+  uploadAvatar: (id, formData) => api.post(`/students/${id}/avatar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 // Staff endpoints
@@ -66,6 +70,10 @@ export const staffAPI = {
   create: (data) => api.post('/staff', data),
   update: (id, data) => api.put(`/staff/${id}`, data),
   delete: (id) => api.delete(`/staff/${id}`),
+  changePassword: (id, currentPassword, newPassword) => api.put(`/staff/${id}/change-password`, { currentPassword, newPassword }),
+  uploadAvatar: (id, formData) => api.post(`/staff/${id}/avatar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 // Grade endpoints
@@ -123,7 +131,17 @@ export const classAPI = {
 export const materialAPI = {
   getAll: (params) => api.get('/materials', { params }),
   getById: (id) => api.get(`/materials/${id}`),
-  create: (data) => api.post('/materials', data),
+  create: (data) => {
+    // If data is FormData, let axios handle Content-Type automatically
+    if (data instanceof FormData) {
+      return api.post('/materials', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+    return api.post('/materials', data);
+  },
   update: (id, data) => api.put(`/materials/${id}`, data),
   delete: (id) => api.delete(`/materials/${id}`),
   getSubmissions: (materialId) => api.get(`/materials/${materialId}/submissions`),
@@ -133,7 +151,17 @@ export const materialAPI = {
 export const submissionAPI = {
   getAll: (params) => api.get('/submissions', { params }),
   getById: (id) => api.get(`/submissions/${id}`),
-  create: (data) => api.post('/submissions', data),
+  create: (data) => {
+    // If data is FormData, handle multipart/form-data
+    if (data instanceof FormData) {
+      return api.post('/submissions', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+    return api.post('/submissions', data);
+  },
   update: (id, data) => api.put(`/submissions/${id}`, data),
   delete: (id) => api.delete(`/submissions/${id}`),
   grade: (id, data) => api.put(`/submissions/${id}/grade`, data),

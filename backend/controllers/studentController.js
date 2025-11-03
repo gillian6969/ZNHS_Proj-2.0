@@ -1,4 +1,5 @@
 import Student from '../models/Student.js';
+import Class from '../models/Class.js';
 import Grade from '../models/Grade.js';
 import Attendance from '../models/Attendance.js';
 import bcrypt from 'bcryptjs';
@@ -37,7 +38,7 @@ export const getStudentById = async (req, res) => {
 // @access  Private (Admin only)
 export const createStudent = async (req, res) => {
   try {
-    const { name, email, idNumber, password, gradeLevel, section, contact, address, classId } = req.body;
+    const { name, email, idNumber, password, gradeLevel, section, contact, address } = req.body;
 
     // Check if student exists
     const studentExists = await Student.findOne({ $or: [{ email }, { idNumber }] });
@@ -49,6 +50,13 @@ export const createStudent = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Find matching class based on grade and section
+    const matchingClass = await Class.findOne({ 
+      gradeLevel, 
+      section,
+      schoolYear: '2024-2025'
+    });
+
     const student = await Student.create({
       name,
       email,
@@ -58,9 +66,15 @@ export const createStudent = async (req, res) => {
       section,
       contact,
       address,
-      classId,
+      classId: matchingClass ? matchingClass._id : null,
       role: 'student',
     });
+
+    // Add student to class if found
+    if (matchingClass) {
+      matchingClass.students.push(student._id);
+      await matchingClass.save();
+    }
 
     res.status(201).json(student);
   } catch (error) {
@@ -81,12 +95,43 @@ export const updateStudent = async (req, res) => {
 
     const { name, email, gradeLevel, section, contact, address } = req.body;
 
+    // Check if grade or section changed
+    const gradeOrSectionChanged = 
+      (gradeLevel && gradeLevel !== student.gradeLevel) || 
+      (section && section !== student.section);
+
+    // Update student fields
     student.name = name || student.name;
     student.email = email || student.email;
     student.gradeLevel = gradeLevel || student.gradeLevel;
     student.section = section || student.section;
     student.contact = contact || student.contact;
     student.address = address || student.address;
+
+    // If grade or section changed, reassign to matching class
+    if (gradeOrSectionChanged) {
+      // Remove from old class
+      if (student.classId) {
+        await Class.findByIdAndUpdate(student.classId, {
+          $pull: { students: student._id }
+        });
+      }
+
+      // Find new matching class
+      const matchingClass = await Class.findOne({
+        gradeLevel: student.gradeLevel,
+        section: student.section,
+        schoolYear: '2024-2025'
+      });
+
+      if (matchingClass) {
+        student.classId = matchingClass._id;
+        matchingClass.students.push(student._id);
+        await matchingClass.save();
+      } else {
+        student.classId = null;
+      }
+    }
 
     const updatedStudent = await student.save();
 
@@ -138,7 +183,7 @@ export const getStudentAttendance = async (req, res) => {
   }
 };
 
-// @desc    Reset student password
+// @desc    Reset student password (Admin only)
 // @route   PUT /api/students/:id/reset-password
 // @access  Private (Admin only)
 export const resetStudentPassword = async (req, res) => {
@@ -163,6 +208,76 @@ export const resetStudentPassword = async (req, res) => {
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Change student password (User themselves)
+// @route   PUT /api/students/:id/change-password
+// @access  Private
+export const changeStudentPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Please provide current password and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    const student = await Student.findById(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Ensure user can only change their own password (unless admin)
+    if (req.user.role !== 'admin' && req.user._id.toString() !== student._id.toString()) {
+      return res.status(403).json({ message: 'You can only change your own password' });
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, student.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    student.passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await student.save();
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Upload avatar
+// @route   POST /api/students/:id/avatar
+// @access  Private
+export const uploadStudentAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload an image' });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const student = await Student.findById(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    student.avatar = avatarUrl;
+    await student.save();
+
+    res.json({ avatar: avatarUrl });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
     res.status(500).json({ message: error.message });
   }
 };

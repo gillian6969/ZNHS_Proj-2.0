@@ -28,11 +28,12 @@ const staffSchema = new mongoose.Schema({
     enum: ['teacher', 'admin'],
     required: true,
   },
-  subject: {
+  subjects: [{
     type: String,
     required: true,
+    enum: ['Filipino', 'English', 'Mathematics', 'Science', 'Araling Panlipunan', 'TLE', 'MAPEH', 'ESP', 'Research', 'Reading and Writing', 'Administration'],
     trim: true,
-  },
+  }],
   contact: {
     type: String,
     trim: true,
@@ -41,6 +42,10 @@ const staffSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Class',
   }],
+  avatar: {
+    type: String,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

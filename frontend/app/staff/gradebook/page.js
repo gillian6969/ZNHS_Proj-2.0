@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Icon from '@/components/Icon';
+import Toast from '@/components/Toast';
 import { classAPI, gradeAPI } from '@/utils/api';
 import { exportToCSV } from '@/utils/exportUtils';
 import Loading from '@/components/Loading';
@@ -28,15 +29,30 @@ export default function StaffGradebook() {
   const [editingCell, setEditingCell] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState({ isOpen: false, message: '', type: 'success' });
 
-  const teacherSubject = user?.subject; // Teacher can only edit their subject
+  // Get teacher's subject from selected class
+  const getTeacherSubject = () => {
+    if (!selectedClass || !user) return null;
+    const currentClass = classes.find(c => c._id === selectedClass);
+    if (!currentClass || !currentClass.teachers) return null;
+    
+    // Find teacher in class and get their assigned subject
+    const teacherAssignment = currentClass.teachers.find(
+      t => t.teacherId && t.teacherId._id === user._id
+    );
+    
+    return teacherAssignment?.subject || null;
+  };
+
+  const teacherSubject = getTeacherSubject();
 
   useEffect(() => {
     fetchClasses();
   }, []);
 
   useEffect(() => {
-    if (selectedClass) {
+    if (selectedClass && teacherSubject) {
       fetchStudentsAndGrades();
     }
   }, [selectedClass]);
@@ -44,9 +60,15 @@ export default function StaffGradebook() {
   const fetchClasses = async () => {
     try {
       const { data } = await classAPI.getAll();
-      setClasses(data);
-      if (data.length > 0) {
-        setSelectedClass(data[0]._id);
+      // Filter classes where teacher is assigned
+      const teacherClasses = data.filter(cls => {
+        return cls.teachers?.some(
+          t => t.teacherId && (t.teacherId._id === user?._id || t.teacherId.toString() === user?._id)
+        );
+      });
+      setClasses(teacherClasses);
+      if (teacherClasses.length > 0) {
+        setSelectedClass(teacherClasses[0]._id);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -56,13 +78,18 @@ export default function StaffGradebook() {
   };
 
   const fetchStudentsAndGrades = async () => {
+    if (!teacherSubject) {
+      setToast({ isOpen: true, message: 'No subject assigned for this class', type: 'error' });
+      return;
+    }
+
     try {
       const classData = await classAPI.getById(selectedClass);
-      setStudents(classData.data.students);
+      setStudents(classData.data.students || []);
 
       // Fetch grades for teacher's subject only
       const gradesData = {};
-      for (const student of classData.data.students) {
+      for (const student of (classData.data.students || [])) {
         const studentGrades = await gradeAPI.getAll({ 
           studentId: student._id, 
           subject: teacherSubject,
@@ -85,6 +112,7 @@ export default function StaffGradebook() {
       setGrades(gradesData);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setToast({ isOpen: true, message: 'Failed to load grades', type: 'error' });
     }
   };
 
@@ -123,16 +151,25 @@ export default function StaffGradebook() {
     setSaving(true);
     try {
       const gradeData = grades[studentId];
-      if (!gradeData) return;
+      if (!gradeData) {
+        setSaving(false);
+        return;
+      }
+
+      if (!teacherSubject) {
+        setToast({ isOpen: true, message: 'No subject assigned for this class', type: 'error' });
+        setSaving(false);
+        return;
+      }
 
       const payload = {
         studentId,
         subject: teacherSubject,
-        q1: gradeData.q1,
-        q2: gradeData.q2,
-        q3: gradeData.q3,
-        q4: gradeData.q4,
-        final: gradeData.final,
+        q1: gradeData.q1 || 0,
+        q2: gradeData.q2 || 0,
+        q3: gradeData.q3 || 0,
+        q4: gradeData.q4 || 0,
+        final: gradeData.final || 0,
         schoolYear: '2024-2025',
       };
 
@@ -144,11 +181,11 @@ export default function StaffGradebook() {
         await gradeAPI.create(payload);
       }
 
-      alert('Grade saved successfully!');
+      setToast({ isOpen: true, message: 'Grade saved successfully! ✓', type: 'success' });
       setEditingCell(null);
       fetchStudentsAndGrades();
     } catch (error) {
-      alert('Failed to save grade');
+      setToast({ isOpen: true, message: 'Failed to save grade', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -176,9 +213,8 @@ export default function StaffGradebook() {
 
   return (
     <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-      <ModernSidebar menuItems={staffMenu}>
+      <ModernSidebar menuItems={staffMenu} pageTitle="Gradebook">
         <div className="flex justify-between items-center mb-5">
-          <h1>Gradebook - {teacherSubject}</h1>
           <button onClick={handleExport} className="btn-primary flex items-center gap-2" disabled={!selectedClass}>
             <Icon name="download" className="w-4 h-4" />
             Export CSV
@@ -224,9 +260,8 @@ export default function StaffGradebook() {
                           <th className="px-3 py-2 text-center font-semibold text-gray-700">Q1</th>
                           <th className="px-3 py-2 text-center font-semibold text-gray-700">Q2</th>
                           <th className="px-3 py-2 text-center font-semibold text-gray-700">Q3</th>
-                          <th className="px-3 py-2 text-center font-semibold text-gray-700">Q4</th>
-                          <th className="px-3 py-2 text-center font-semibold text-gray-700">Final</th>
-                          <th className="px-3 py-2 text-center font-semibold text-gray-700">Action</th>
+                        <th className="px-3 py-2 text-center font-semibold text-gray-700">Q4</th>
+                        <th className="px-3 py-2 text-center font-semibold text-gray-700">Final</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -251,7 +286,10 @@ export default function StaffGradebook() {
                                       step="0.01"
                                       value={grade[quarter] || ''}
                                       onChange={(e) => handleCellChange(e.target.value, student._id, quarter)}
-                                      onBlur={() => setEditingCell(null)}
+                                      onBlur={() => {
+                                        setEditingCell(null);
+                                        handleSaveGrade(student._id);
+                                      }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                           handleSaveGrade(student._id);
@@ -273,16 +311,6 @@ export default function StaffGradebook() {
                               <td className="px-3 py-2 text-center font-bold text-sm">
                                 {grade.final || '-'}
                               </td>
-                              <td className="px-3 py-2 text-center">
-                                <button
-                                  onClick={() => handleSaveGrade(student._id)}
-                                  disabled={saving}
-                                  className="text-blue-600 hover:text-blue-800 text-xs font-medium disabled:opacity-50 flex items-center gap-1 mx-auto"
-                                >
-                                  <Icon name="save" className="w-4 h-4" />
-                                  Save
-                                </button>
-                              </td>
                             </tr>
                           );
                         })}
@@ -301,6 +329,14 @@ export default function StaffGradebook() {
             )}
           </>
         )}
+
+        {/* Toast Notification */}
+        <Toast
+          isOpen={toast.isOpen}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, isOpen: false })}
+        />
       </ModernSidebar>
     </ProtectedRoute>
   );

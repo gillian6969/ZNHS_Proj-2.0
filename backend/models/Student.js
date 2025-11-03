@@ -31,6 +31,7 @@ const studentSchema = new mongoose.Schema({
   section: {
     type: String,
     required: true,
+    enum: ['Pilot', 'SSC', 'ICT', 'Section 1', 'Section 2', 'Section 3', 'Section 4', 'Section 5'],
     trim: true,
   },
   classId: {
@@ -44,6 +45,10 @@ const studentSchema = new mongoose.Schema({
   address: {
     type: String,
     trim: true,
+  },
+  avatar: {
+    type: String,
+    default: null,
   },
   role: {
     type: String,

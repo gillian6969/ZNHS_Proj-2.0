@@ -8,12 +8,13 @@ import {
   getMaterialSubmissions,
 } from '../controllers/materialController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { uploadMaterial } from '../middleware/upload.js';
 
 const router = express.Router();
 
 router.route('/')
   .get(protect, getAllMaterials)
-  .post(protect, authorize('teacher', 'admin'), createMaterial);
+  .post(protect, authorize('teacher', 'admin'), uploadMaterial, createMaterial);
 
 router.route('/:id')
   .get(protect, getMaterialById)
