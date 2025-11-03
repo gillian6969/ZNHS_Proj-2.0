@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 
 export default function Navbar() {
@@ -11,9 +12,15 @@ export default function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-blue rounded-full flex items-center justify-center text-white font-bold">
-              Z
+          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+            <div className="relative w-10 h-10">
+              <Image
+                src="/znhslogo.png"
+                alt="ZNHS Logo"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
             <span className="font-bold text-xl text-primary-dark">ZNHS</span>
           </Link>
@@ -47,7 +54,9 @@ export default function Navbar() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-gray-700 focus:outline-none"
+            className="md:hidden text-gray-700 hover:text-primary-dark focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Toggle menu"
+            aria-expanded={isOpen}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isOpen ? (
@@ -59,25 +68,49 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+          {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden pb-4">
-            <Link href="/" className="block py-2 text-gray-700 hover:text-primary-light">
+          <div className="md:hidden pb-4 space-y-2">
+            <Link 
+              href="/" 
+              onClick={() => setIsOpen(false)}
+              className="block py-2 text-gray-700 hover:text-primary-light transition-colors"
+            >
               Home
             </Link>
-            <Link href="/#about" className="block py-2 text-gray-700 hover:text-primary-light">
+            <Link 
+              href="/#about" 
+              onClick={() => setIsOpen(false)}
+              className="block py-2 text-gray-700 hover:text-primary-light transition-colors"
+            >
               About
             </Link>
-            <Link href="/#academics" className="block py-2 text-gray-700 hover:text-primary-light">
+            <Link 
+              href="/#academics" 
+              onClick={() => setIsOpen(false)}
+              className="block py-2 text-gray-700 hover:text-primary-light transition-colors"
+            >
               Academics
             </Link>
-            <Link href="/#admission" className="block py-2 text-gray-700 hover:text-primary-light">
+            <Link 
+              href="/#admission" 
+              onClick={() => setIsOpen(false)}
+              className="block py-2 text-gray-700 hover:text-primary-light transition-colors"
+            >
               Admission
             </Link>
-            <Link href="/#contact" className="block py-2 text-gray-700 hover:text-primary-light">
+            <Link 
+              href="/#contact" 
+              onClick={() => setIsOpen(false)}
+              className="block py-2 text-gray-700 hover:text-primary-light transition-colors"
+            >
               Contact Us
             </Link>
-            <Link href="/login" className="block py-2 text-primary-dark font-semibold">
+            <Link 
+              href="/login" 
+              onClick={() => setIsOpen(false)}
+              className="block py-2 text-primary-dark font-semibold"
+            >
               Login
             </Link>
           </div>

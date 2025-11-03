@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { GRADE_LEVELS, SECTIONS } from '@/utils/constants';
 
@@ -61,27 +62,47 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-blue flex items-center justify-center p-4">
-      <div className="glass-dark rounded-2xl p-8 max-w-md w-full">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Full Screen Background Image */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/logo2.jpg"
+          alt="ZNHS Logo Background"
+          fill
+          className="object-cover"
+          priority
+          quality={90}
+        />
+        {/* Blur & Dark Overlay */}
+        <div className="absolute inset-0 backdrop-blur-sm bg-gradient-to-br from-gray-900/80 via-blue-900/70 to-indigo-900/80"></div>
+      </div>
+
+      <div className="relative z-10 glass-dark rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/30">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl font-bold text-primary-dark">Z</span>
+          <div className="w-24 h-24 relative mx-auto mb-4">
+            <Image
+              src="/znhslogo.png"
+              alt="ZNHS Logo"
+              fill
+              className="object-contain drop-shadow-lg"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Student Registration</h1>
-          <p className="text-white opacity-90">Create your ZNHS account</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">Student Registration</h1>
+          <p className="text-white/95 text-sm md:text-base drop-shadow-md">Create your ZNHS account</p>
         </div>
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-500 text-white px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div className="bg-red-500/90 backdrop-blur-sm text-white px-4 py-3 rounded-xl flex items-center gap-2 shadow-lg border border-red-400/30">
+              <span className="text-xl">⚠️</span>
+              <span className="font-medium text-sm">{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Full Name *
             </label>
             <input
@@ -89,14 +110,14 @@ export default function RegisterPage() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg"
               placeholder="Enter your full name"
               required
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Email *
             </label>
             <input
@@ -104,14 +125,14 @@ export default function RegisterPage() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg"
               placeholder="your.email@example.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               ID Number *
             </label>
             <input
@@ -119,21 +140,21 @@ export default function RegisterPage() {
               name="idNumber"
               value={formData.idNumber}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg"
               placeholder="Enter your student ID"
               required
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Grade Level *
             </label>
             <select
               name="gradeLevel"
               value={formData.gradeLevel}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg [&>option]:bg-gray-800 [&>option]:text-white"
               required
             >
               <option value="">Select Grade Level</option>
@@ -144,14 +165,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Section *
             </label>
             <select
               name="section"
               value={formData.section}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg [&>option]:bg-gray-800 [&>option]:text-white"
               required
             >
               <option value="">Select Section</option>
@@ -162,7 +183,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Contact Number
             </label>
             <input
@@ -170,13 +191,13 @@ export default function RegisterPage() {
               name="contact"
               value={formData.contact}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg"
               placeholder="09XX XXX XXXX"
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Password *
             </label>
             <input
@@ -184,14 +205,14 @@ export default function RegisterPage() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg"
               placeholder="At least 6 characters"
               required
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2 font-medium text-sm">
+            <label className="block text-white mb-2 font-medium text-sm drop-shadow-sm">
               Confirm Password *
             </label>
             <input
@@ -199,7 +220,7 @@ export default function RegisterPage() {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="input-field"
+              className="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all shadow-lg"
               placeholder="Re-enter your password"
               required
             />
@@ -208,17 +229,27 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-white text-primary-dark font-semibold py-3 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-4 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 backdrop-blur-sm border border-white/20"
           >
-            {loading ? 'Creating Account...' : 'Register'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                Creating Account...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                Register
+                <span className="text-xl">→</span>
+              </span>
+            )}
           </button>
         </form>
 
         {/* Login Link */}
         <div className="mt-6 text-center">
-          <p className="text-white">
+          <p className="text-white/90 drop-shadow-sm">
             Already have an account?{' '}
-            <Link href="/login" className="font-semibold hover:underline">
+            <Link href="/login" className="font-semibold hover:text-white hover:underline transition-colors">
               Login here
             </Link>
           </p>
@@ -226,8 +257,8 @@ export default function RegisterPage() {
 
         {/* Back to Home */}
         <div className="mt-4 text-center">
-          <Link href="/" className="text-white/80 hover:text-white text-sm">
-            ← Back to Home
+          <Link href="/" className="text-white/80 hover:text-white text-sm inline-flex items-center gap-2 transition-colors drop-shadow-sm">
+            <span>←</span> Back to Home
           </Link>
         </div>
       </div>
