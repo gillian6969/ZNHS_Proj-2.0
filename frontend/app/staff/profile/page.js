@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import Icon from '@/components/Icon';
 import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Icon from '@/components/Icon';
 import Toast from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { staffAPI } from '@/utils/api';
+import { useState } from 'react';
 
 const getStaffMenu = (userRole) => {
   const baseMenu = [
@@ -45,6 +45,7 @@ export default function StaffProfile() {
   });
   const [toast, setToast] = useState({ isOpen: false, message: '', type: 'success' });
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState(Date.now());
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -69,39 +70,55 @@ export default function StaffProfile() {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       setToast({ isOpen: true, message: 'Please upload an image file', type: 'error' });
+      // Reset file input
+      e.target.value = '';
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       setToast({ isOpen: true, message: 'Image size must be less than 5MB', type: 'error' });
+      // Reset file input
+      e.target.value = '';
       return;
     }
 
     setUploadingAvatar(true);
     try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      const { data } = await staffAPI.uploadAvatar(user._id, formData);
+      const formDataToSend = new FormData();
+      formDataToSend.append('avatar', file);
+      
+      console.log('Uploading avatar for user:', user._id);
+      const response = await staffAPI.uploadAvatar(user._id, formDataToSend);
+      const { data } = response;
+      
+      if (data.success === false) {
+        throw new Error(data.message || 'Upload failed');
+      }
+      
+      console.log('Avatar uploaded successfully:', data.avatar);
+      
+      // Update user with new avatar
       const updatedUser = { ...user, avatar: data.avatar };
       setUser(updatedUser);
-      try { localStorage.setItem('user', JSON.stringify(updatedUser)); } catch (_) {}
-      setToast({ isOpen: true, message: 'Avatar uploaded successfully! ✓', type: 'success' });
-    } catch (error) {
-      // Fallback: if backend saved but response errored, re-fetch from localStorage snapshot
-      try {
-        const refreshed = localStorage.getItem('user');
-        if (refreshed) {
-          const parsed = JSON.parse(refreshed);
-          if (parsed?.avatar) {
-            const updatedUser = { ...user, avatar: parsed.avatar };
-            setUser(updatedUser);
-            setToast({ isOpen: true, message: 'Avatar uploaded successfully! ✓', type: 'success' });
-            return;
-          }
-        }
+      
+      // Save to localStorage
+      try { 
+        localStorage.setItem('user', JSON.stringify(updatedUser)); 
       } catch (_) {}
-      setToast({ isOpen: true, message: 'Failed to upload avatar', type: 'error' });
+      
+      // Update cache buster to force image refresh
+      setAvatarCacheBuster(Date.now());
+      
+      setToast({ isOpen: true, message: 'Avatar uploaded successfully! ✓', type: 'success' });
+      // Reset file input for future uploads
+      e.target.value = '';
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload avatar';
+      setToast({ isOpen: true, message: errorMessage, type: 'error' });
+      // Reset file input on error
+      e.target.value = '';
     } finally {
       setUploadingAvatar(false);
     }
@@ -167,7 +184,7 @@ export default function StaffProfile() {
                 <div className="relative">
                   {user?.avatar ? (
                     <img 
-                      src={`http://localhost:5000${user.avatar}?t=${typeof window !== 'undefined' ? Date.now() : ''}`} 
+                      src={`http://localhost:5000${user.avatar}?t=${avatarCacheBuster}`} 
                       alt={user?.name}
                       className="w-20 h-20 rounded-full object-cover border-4 border-green-500"
                     />

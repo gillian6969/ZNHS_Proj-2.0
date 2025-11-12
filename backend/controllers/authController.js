@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
-import Student from '../models/Student.js';
+import PasswordReset from '../models/PasswordReset.js';
 import Staff from '../models/Staff.js';
+import Student from '../models/Student.js';
 import generateToken from '../utils/generateToken.js';
 
 // @desc    Register a new student
@@ -121,6 +122,84 @@ export const getMe = async (req, res) => {
     res.json(req.user);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Request password reset (local-only: returns OTP in response)
+// @route   POST /api/auth/request-reset
+// @access  Public
+export const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    // Find user in Staff or Student
+    const user = await Staff.findOne({ email }) || await Student.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'No account found with that email' });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Hash OTP before storing
+    const salt = await bcrypt.genSalt(10);
+    const otpHash = await bcrypt.hash(otp, salt);
+
+    // Remove existing reset tokens for this email
+    await PasswordReset.deleteMany({ email });
+
+    // Save new reset token (expires in 15 minutes)
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await PasswordReset.create({ email, otpHash, expiresAt });
+
+    // Return OTP in response (local-only; do NOT use in production)
+    return res.json({ message: 'OTP generated (local only)', otp, expiresAt });
+  } catch (error) {
+    console.error('requestPasswordReset error', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Reset password using OTP
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return res.status(400).json({ message: 'Email, otp and newPassword are required' });
+
+    // Find reset record
+    const record = await PasswordReset.findOne({ email });
+    if (!record) return res.status(400).json({ message: 'No password reset request found' });
+
+    if (record.expiresAt < new Date()) {
+      await PasswordReset.deleteMany({ email });
+      return res.status(400).json({ message: 'OTP expired' });
+    }
+
+    // Verify OTP
+    const isValid = await bcrypt.compare(otp, record.otpHash);
+    if (!isValid) return res.status(400).json({ message: 'Invalid OTP' });
+
+    // Find user and update password
+    const userType = (await Staff.findOne({ email })) ? 'staff' : ((await Student.findOne({ email })) ? 'student' : null);
+    if (!userType) return res.status(404).json({ message: 'User not found' });
+
+    const passwordSalt = await bcrypt.genSalt(10);
+    const newHash = await bcrypt.hash(newPassword, passwordSalt);
+
+    if (userType === 'staff') {
+      await Staff.updateOne({ email }, { passwordHash: newHash });
+    } else {
+      await Student.updateOne({ email }, { passwordHash: newHash });
+    }
+
+    // Cleanup reset records
+    await PasswordReset.deleteMany({ email });
+
+    return res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('resetPassword error', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 

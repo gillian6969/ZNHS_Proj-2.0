@@ -1,5 +1,5 @@
-import Staff from '../models/Staff.js';
 import bcrypt from 'bcryptjs';
+import Staff from '../models/Staff.js';
 
 // @desc    Get all staff
 // @route   GET /api/staff
@@ -167,20 +167,28 @@ export const uploadStaffAvatar = async (req, res) => {
       return res.status(400).json({ message: 'Please upload an image' });
     }
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     const staff = await Staff.findById(req.params.id);
 
     if (!staff) {
       return res.status(404).json({ message: 'Staff not found' });
     }
 
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     staff.avatar = avatarUrl;
-    await staff.save();
+    const updatedStaff = await staff.save();
 
-    res.json({ avatar: avatarUrl });
+    // Return full updated staff object or just avatar
+    res.json({ 
+      avatar: avatarUrl,
+      success: true,
+      message: 'Avatar uploaded successfully'
+    });
   } catch (error) {
     console.error('Avatar upload error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: error.message || 'Failed to upload avatar',
+      success: false 
+    });
   }
 };
 

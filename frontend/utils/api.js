@@ -49,6 +49,8 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
+  requestReset: (data) => api.post('/auth/request-reset', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
 // Student endpoints

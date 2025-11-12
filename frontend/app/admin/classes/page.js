@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import ModernSidebar from '@/components/ModernSidebar';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Icon from '@/components/Icon';
-import Toast from '@/components/Toast';
-import { classAPI, staffAPI, studentAPI } from '@/utils/api';
 import Loading from '@/components/Loading';
-import { GRADE_LEVELS, SECTIONS, SUBJECTS } from '@/utils/constants';
+import Modal from '@/components/Modal';
+import ModernSidebar from '@/components/ModernSidebar';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import Toast from '@/components/Toast';
+import { classAPI, staffAPI } from '@/utils/api';
+import { SECTIONS } from '@/utils/constants';
+import { useEffect, useState } from 'react';
 
 const adminMenu = [
   { label: 'Dashboard', href: '/admin/dashboard', iconName: 'dashboard' },
@@ -46,6 +46,7 @@ export default function AdminClasses() {
     section: '',
     room: '',
     teachers: [],
+    adviser: '',
   });
 
   useEffect(() => {
@@ -185,23 +186,23 @@ export default function AdminClasses() {
     }
 
     try {
+      const payload = {
+        gradeLevel: formData.gradeLevel,
+        section: formData.section,
+        room: formData.room,
+        teachers: formData.teachers,
+        adviser: formData.adviser || null,
+      };
+
       if (selectedClass && isEditModalOpen) {
         // Update existing class
-        await classAPI.update(selectedClass._id, {
-          gradeLevel: formData.gradeLevel,
-          section: formData.section,
-          room: formData.room,
-          teachers: formData.teachers,
-        });
+        await classAPI.update(selectedClass._id, payload);
         setToast({ isOpen: true, message: 'Class updated successfully! ✓', type: 'success' });
         setIsEditModalOpen(false);
       } else {
         // Create new class
         await classAPI.create({
-          gradeLevel: formData.gradeLevel,
-          section: formData.section,
-          room: formData.room,
-          teachers: formData.teachers,
+          ...payload,
           schoolYear: '2024-2025',
         });
         setToast({ isOpen: true, message: 'Class created successfully! ✓', type: 'success' });
@@ -239,11 +240,14 @@ export default function AdminClasses() {
       subject: t.subject || '',
     }));
     
+    const adviserValue = cls.adviser ? (typeof cls.adviser === 'object' ? cls.adviser._id : cls.adviser) : '';
+    
     setFormData({
       gradeLevel: cls.gradeLevel || 'Grade 7',
       section: cls.section || '',
       room: cls.room || '',
       teachers: normalizedTeachers,
+      adviser: adviserValue,
     });
     setIsEditModalOpen(true);
   };
@@ -259,6 +263,7 @@ export default function AdminClasses() {
       section: '',
       room: '',
       teachers: [],
+      adviser: '',
     });
     setSelectedClass(null);
   };
@@ -509,6 +514,24 @@ export default function AdminClasses() {
             </div>
 
             <div>
+              <label className="input-label">Class Adviser</label>
+              <select
+                name="adviser"
+                value={formData.adviser}
+                onChange={handleChange}
+                className="input-field"
+              >
+                <option value="">-- No Adviser --</option>
+                {teachers.map((teacher) => (
+                  <option key={teacher._id} value={teacher._id}>
+                    {teacher.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-600 mt-1">The adviser must also be assigned as a subject teacher above</p>
+            </div>
+
+            <div>
               <label className="input-label">Assign Teachers & Subjects *</label>
               <div className="border-2 border-gray-300 rounded-xl p-4 max-h-96 overflow-y-auto space-y-3 bg-gray-50">
                 {teachers.length > 0 ? (
@@ -640,6 +663,24 @@ export default function AdminClasses() {
                 className="input-field"
                 placeholder="e.g., Room 101"
               />
+            </div>
+
+            <div>
+              <label className="input-label">Class Adviser</label>
+              <select
+                name="adviser"
+                value={formData.adviser}
+                onChange={handleChange}
+                className="input-field"
+              >
+                <option value="">-- No Adviser --</option>
+                {teachers.map((teacher) => (
+                  <option key={teacher._id} value={teacher._id}>
+                    {teacher.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-600 mt-1">The adviser must also be assigned as a subject teacher above</p>
             </div>
 
             <div>

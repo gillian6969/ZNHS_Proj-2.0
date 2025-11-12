@@ -1,7 +1,7 @@
+import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,12 +83,11 @@ export const uploadSubmission = multer({
 // Avatar upload configuration
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const folder = 'uploads/avatars/';
-    const fullPath = path.join(__dirname, '..', folder);
-    if (!fs.existsSync(fullPath)) {
-      fs.mkdirSync(fullPath, { recursive: true });
+    const folder = path.join(__dirname, '..', 'uploads', 'avatars');
+    if (!fs.existsSync(folder)) {
+      fs.mkdirSync(folder, { recursive: true });
     }
-    cb(null, fullPath);
+    cb(null, folder);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

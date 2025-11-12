@@ -1,8 +1,8 @@
-import Student from '../models/Student.js';
+import bcrypt from 'bcryptjs';
+import Attendance from '../models/Attendance.js';
 import Class from '../models/Class.js';
 import Grade from '../models/Grade.js';
-import Attendance from '../models/Attendance.js';
-import bcrypt from 'bcryptjs';
+import Student from '../models/Student.js';
 
 // @desc    Get all students
 // @route   GET /api/students
@@ -265,20 +265,27 @@ export const uploadStudentAvatar = async (req, res) => {
       return res.status(400).json({ message: 'Please upload an image' });
     }
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     const student = await Student.findById(req.params.id);
 
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
     }
 
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     student.avatar = avatarUrl;
-    await student.save();
+    const updatedStudent = await student.save();
 
-    res.json({ avatar: avatarUrl });
+    res.json({ 
+      avatar: avatarUrl,
+      success: true,
+      message: 'Avatar uploaded successfully'
+    });
   } catch (error) {
     console.error('Avatar upload error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: error.message || 'Failed to upload avatar',
+      success: false 
+    });
   }
 };
 

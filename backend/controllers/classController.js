@@ -1,6 +1,6 @@
 import Class from '../models/Class.js';
-import Student from '../models/Student.js';
 import Staff from '../models/Staff.js';
+import Student from '../models/Student.js';
 
 // @desc    Get all classes
 // @route   GET /api/classes
@@ -15,6 +15,7 @@ export const getAllClasses = async (req, res) => {
 
     const classes = await Class.find(query)
       .populate('teachers.teacherId', 'name email subjects')
+      .populate('adviser', 'name email idNumber')
       .populate('students', 'name idNumber email')
       .sort({ gradeLevel: 1, section: 1 });
 
@@ -31,6 +32,7 @@ export const getClassById = async (req, res) => {
   try {
     const classData = await Class.findById(req.params.id)
       .populate('teachers.teacherId', 'name email subjects')
+      .populate('adviser', 'name email idNumber')
       .populate('students', 'name idNumber email gradeLevel section');
     
     if (!classData) {
@@ -48,7 +50,7 @@ export const getClassById = async (req, res) => {
 // @access  Private (Admin only)
 export const createClass = async (req, res) => {
   try {
-    const { className, gradeLevel, section, schoolYear, teachers, students, schedule, room } = req.body;
+    const { className, gradeLevel, section, schoolYear, teachers, students, schedule, room, adviser } = req.body;
 
     // Check if class already exists
     const classExists = await Class.findOne({ gradeLevel, section, schoolYear });
@@ -65,6 +67,7 @@ export const createClass = async (req, res) => {
       students: students || [],
       schedule,
       room,
+      adviser: adviser || null,
     });
 
     // Update students' classId
@@ -101,7 +104,7 @@ export const updateClass = async (req, res) => {
       return res.status(404).json({ message: 'Class not found' });
     }
 
-    const { className, gradeLevel, section, teachers, students, schedule, room } = req.body;
+    const { className, gradeLevel, section, teachers, students, schedule, room, adviser } = req.body;
 
     // Update basic info
     if (className) classData.className = className;
@@ -109,6 +112,7 @@ export const updateClass = async (req, res) => {
     if (section) classData.section = section;
     if (schedule) classData.schedule = schedule;
     if (room) classData.room = room;
+    if (adviser !== undefined) classData.adviser = adviser || null;
 
     // Update teachers
     if (teachers) {
@@ -251,6 +255,7 @@ export const getTeacherClasses = async (req, res) => {
       'teachers.teacherId': req.params.teacherId
     })
       .populate('students', 'name idNumber email')
+      .populate('adviser', 'name email idNumber')
       .populate('teachers.teacherId', 'name email');
 
     res.json(classes);

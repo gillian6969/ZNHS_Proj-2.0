@@ -13,15 +13,16 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   };
 
   return (
-    <div className="modal-backdrop flex items-center justify-center p-4 animate-fadeIn">
+    // Use fixed positioning and high z-index so the modal and backdrop overlay everything (including sticky nav)
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 animate-fadeIn">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       ></div>
 
-      {/* Modal */}
-      <div className={`relative bg-white rounded-2xl shadow-2xl ${sizeClasses[size]} w-full max-h-[90vh] flex flex-col animate-slideUp`}>
+      {/* Modal (above backdrop) */}
+      <div className={`relative z-10 bg-white rounded-2xl shadow-2xl ${sizeClasses[size]} w-full max-h-[90vh] flex flex-col animate-slideUp`} role="dialog" aria-modal="true" aria-label={title}>
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
