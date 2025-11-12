@@ -145,16 +145,7 @@ cd ZNHS_Proj-2.0
    ```
    (This will download all required packages - may take 2-3 minutes)
 
-4. **Seed the database** (add demo data):
-   ```bash
-   node seed-minimal.js
-   ```
-   - This creates demo students, teachers, and admin account
-   - **Admin Login**: Username/Email: `admin@znhs.edu` | Password: `Admin123!`
-   - **Teacher Login**: Username/Email: `teacher1@znhs.edu` | Password: `password123`
-   - **Student Login**: Username/Email: `student1@znhs.edu` | Password: `password123`
-
-5. **Start the backend server**:
+4. **Start the backend server**:
    ```bash
    npm run dev
    ```
@@ -189,20 +180,6 @@ cd ZNHS_Proj-2.0
    ```
    - You should see: `▲ Next.js X.X.X`
    - The app will open automatically, or go to: http://localhost:3000
-
----
-
-### Step 5: Access the Application
-
-Open your web browser and go to: **http://localhost:3000**
-
-**Test Login Credentials** (from seed-minimal.js):
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@znhs.edu | Admin123! |
-| Teacher | teacher1@znhs.edu | password123 |
-| Student | student1@znhs.edu | password123 |
 
 ---
 
@@ -268,13 +245,6 @@ ZNHS_Proj-2.0/
 
 ## 📖 Common Tasks
 
-### Reset Database
-To clear all data and start fresh:
-```bash
-# In backend folder
-node seed-minimal.js
-```
-
 ### Change Default Credentials
 1. Log in as admin
 2. Go to Profile → Change Password
@@ -284,22 +254,5 @@ node seed-minimal.js
 1. Go to MongoDB Atlas: https://www.mongodb.com/cloud/atlas
 2. Login with your account
 3. Click your cluster → "Collections" to see all data
-
----
-
-## 🤝 Support & Contact
-
-For issues or questions:
-- Check the Troubleshooting section above
-- Review the error messages in the terminal
-- Contact: project maintainer
-
----
-
-## 📝 License
-
-This project is for Zaragoza National High School.
-
-**Happy Learning! 🎓**
 
 
