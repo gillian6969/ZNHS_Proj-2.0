@@ -142,7 +142,7 @@ export default function ModernSidebar({ menuItems, children, pageTitle }) {
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full blur-md opacity-60"></div>
                         {user?.avatar ? (
                           <img 
-                            src={`http://localhost:5000${user.avatar}?t=${typeof window !== 'undefined' ? Date.now() : ''}`}
+                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}${user.avatar}?t=${typeof window !== 'undefined' ? Date.now() : ''}`}
                             alt={user?.name}
                             className="relative w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
                           />

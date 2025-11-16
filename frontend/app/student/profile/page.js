@@ -169,7 +169,7 @@ export default function StudentProfile() {
                 <div className="relative">
                   {user?.avatar ? (
                     <img 
-                      src={`http://localhost:5000${user.avatar}?t=${avatarCacheBuster}`} 
+                      src={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}${user.avatar}?t=${avatarCacheBuster}`} 
                       alt={user?.name}
                       className="w-20 h-20 rounded-full object-cover border-4 border-blue-500"
                     />

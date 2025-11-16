@@ -181,7 +181,7 @@ export default function StudentSubjects() {
       }
       
       // Use base URL without /api since uploads are served directly at /uploads
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
       const fileUrl = `${baseUrl}${cleanUrl}`;
       
       // Try to download using fetch (with credentials for authenticated files if needed)
@@ -220,7 +220,7 @@ export default function StudentSubjects() {
       if (!cleanUrl.startsWith('/')) {
         cleanUrl = '/' + cleanUrl;
       }
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
       const fileUrl = `${baseUrl}${cleanUrl}`;
       
       // Open in new tab as fallback
@@ -527,7 +527,7 @@ export default function StudentSubjects() {
                       }
                       
                       // Use base URL without /api since uploads are served directly at /uploads
-                      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
+                      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
                       const fileUrl = `${baseUrl}${cleanUrl}`;
                       
                       if (selectedMaterial.fileUrl.endsWith('.mp4')) {

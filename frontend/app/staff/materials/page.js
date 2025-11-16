@@ -352,7 +352,7 @@ export default function StaffMaterials() {
                             }
                             
                             // Use base URL without /api since uploads are served directly at /uploads
-                            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
+                            const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
                             const fileUrl = `${baseUrl}${cleanUrl}`;
                             
                             // Create download link
