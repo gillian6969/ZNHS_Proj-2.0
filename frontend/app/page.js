@@ -56,7 +56,7 @@ export default function HomePage() {
         {/* Full Screen Background Image with Blur */}
         <div className="absolute inset-0 z-0">
           <Image
-            src="/IMG_6294.JPG"
+            src="/IMG_6294.jpg"
             alt="ZNHS Modern Classroom Building"
             fill
             className="object-cover"
@@ -156,7 +156,7 @@ export default function HomePage() {
             {/* School Building Image */}
             <div className="relative w-full h-[400px] lg:h-[500px] rounded-3xl overflow-hidden shadow-2xl mb-12">
               <Image
-                src="/IMG_6294.JPG"
+                src="/IMG_6294.jpg"
                 alt="ZNHS Modern Classroom Building - The Eggia Modern Classroom Concept"
                 fill
                 className="object-cover"

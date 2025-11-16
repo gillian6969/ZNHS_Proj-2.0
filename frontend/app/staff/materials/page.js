@@ -670,7 +670,7 @@ export default function StaffMaterials() {
                         if (!cleanUrl.startsWith('/')) {
                           cleanUrl = '/' + cleanUrl;
                         }
-                        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
+                        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace('/api', '');
                         const imageUrl = `${baseUrl}${cleanUrl}`;
                         return (
                           <img
