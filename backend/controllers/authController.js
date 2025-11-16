@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import PasswordReset from '../models/PasswordReset.js';
 import Staff from '../models/Staff.js';
 import Student from '../models/Student.js';
+import Class from '../models/Class.js';
 import generateToken from '../utils/generateToken.js';
 
 // @desc    Register a new student
@@ -26,6 +27,13 @@ export const registerStudent = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Find matching class based on grade and section
+    const matchingClass = await Class.findOne({ 
+      gradeLevel, 
+      section,
+      schoolYear: '2024-2025'
+    });
+
     // Create student
     const student = await Student.create({
       name,
@@ -35,8 +43,15 @@ export const registerStudent = async (req, res) => {
       gradeLevel,
       section,
       contact,
+      classId: matchingClass ? matchingClass._id : null,
       role: 'student',
     });
+
+    // Add student to class if found
+    if (matchingClass) {
+      matchingClass.students.push(student._id);
+      await matchingClass.save();
+    }
 
     if (student) {
       res.status(201).json({
@@ -46,6 +61,7 @@ export const registerStudent = async (req, res) => {
         idNumber: student.idNumber,
         gradeLevel: student.gradeLevel,
         section: student.section,
+        classId: student.classId,
         role: student.role,
         token: generateToken(student._id, student.role),
       });
