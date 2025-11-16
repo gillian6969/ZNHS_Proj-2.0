@@ -61,7 +61,8 @@ export default function HomePage() {
             fill
             className="object-cover"
             priority
-            quality={90}
+            quality={75}
+            sizes="100vw"
           />
           {/* Blur Overlay */}
           <div className="absolute inset-0 backdrop-blur-sm bg-white/20"></div>
@@ -160,6 +161,8 @@ export default function HomePage() {
                 alt="ZNHS Modern Classroom Building - The Eggia Modern Classroom Concept"
                 fill
                 className="object-cover"
+                quality={75}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-gray-900/60 via-gray-900/20 to-transparent"></div>
               <div className="absolute bottom-8 left-8 right-8">
