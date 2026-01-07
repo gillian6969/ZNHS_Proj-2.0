@@ -1,6 +1,14 @@
 import Attendance from '../models/Attendance.js';
 import Student from '../models/Student.js';
 
+// Helper function to convert date string (YYYY-MM-DD) to Date object at midnight
+// Simpler approach: just use local date without timezone conversion
+const parseDate = (dateString) => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  // Create date at midnight in local timezone
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
 // @desc    Get all attendance records
 // @route   GET /api/attendance
 // @access  Private (Staff/Admin)
@@ -13,13 +21,12 @@ export const getAllAttendance = async (req, res) => {
     if (status) query.status = status;
     
     if (date) {
-      // Normalize date to start of day for comparison (same as createAttendance)
-      const queryDate = new Date(date);
-      queryDate.setHours(0, 0, 0, 0);
-      const nextDay = new Date(queryDate);
+      // Parse date string and query for that day only
+      const parsedDate = parseDate(date);
+      const nextDay = new Date(parsedDate);
       nextDay.setDate(nextDay.getDate() + 1);
       query.date = {
-        $gte: queryDate,
+        $gte: parsedDate,
         $lt: nextDay
       };
     } else if (startDate && endDate) {
@@ -31,6 +38,7 @@ export const getAllAttendance = async (req, res) => {
 
     const attendance = await Attendance.find(query)
       .populate('studentId', 'name idNumber section gradeLevel')
+      .populate('markedBy', 'firstName lastName')
       .sort({ date: -1 });
 
     res.json(attendance);
@@ -45,7 +53,8 @@ export const getAllAttendance = async (req, res) => {
 export const getAttendanceById = async (req, res) => {
   try {
     const attendance = await Attendance.findById(req.params.id)
-      .populate('studentId', 'name idNumber section gradeLevel');
+      .populate('studentId', 'name idNumber section gradeLevel')
+      .populate('markedBy', 'firstName lastName');
     
     if (!attendance) {
       return res.status(404).json({ message: 'Attendance record not found' });
@@ -70,9 +79,8 @@ export const createAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Normalize date to start of day for comparison
-    const attendanceDate = new Date(date || new Date());
-    attendanceDate.setHours(0, 0, 0, 0);
+    // Parse date correctly
+    const attendanceDate = parseDate(date || new Date().toISOString().split('T')[0]);
     const nextDay = new Date(attendanceDate);
     nextDay.setDate(nextDay.getDate() + 1);
 
@@ -165,9 +173,12 @@ export const bulkCreateAttendance = async (req, res) => {
       return res.status(400).json({ message: 'Please provide student IDs array' });
     }
 
+    // Parse date correctly
+    const attendanceDate = date ? parseDate(date) : parseDate(new Date().toISOString().split('T')[0]);
+
     const attendanceRecords = studentIds.map(studentId => ({
       studentId,
-      date: date || new Date(),
+      date: attendanceDate,
       status: status || 'present',
       subject,
       markedBy: req.user._id,

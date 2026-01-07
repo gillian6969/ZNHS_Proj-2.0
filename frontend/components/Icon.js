@@ -175,6 +175,21 @@ export default function Icon({ name, className = "w-5 h-5", color = "currentColo
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
       </svg>
     ),
+    'chevron-left': (
+      <svg className={className} fill="none" stroke={color} viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    ),
+    'chevron-right': (
+      <svg className={className} fill="none" stroke={color} viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+      </svg>
+    ),
+    restart: (
+      <svg className={className} fill={color} viewBox="0 0 24 24">
+        <path d="M7 7h10v3l4-4-4-4v3H5c-1.1 0-2 .9-2 2v10h2V7zm10 10H7v-3l-4 4 4 4v-3h12c1.1 0 2-.9 2-2V7h-2v10z"/>
+      </svg>
+    ),
   };
 
   return icons[name] || icons.info;

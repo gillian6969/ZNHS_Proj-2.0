@@ -92,6 +92,10 @@ p {
   @apply badge bg-blue-100 text-blue-800;
 }
 
+.badge-secondary {
+  @apply badge bg-gray-100 text-gray-800;
+}
+
 /* Table Styles - Larger, More Modern */
 .table-container {
   @apply overflow-x-auto bg-white rounded-2xl shadow-lg border border-gray-200;

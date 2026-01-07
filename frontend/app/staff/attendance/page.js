@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import Loading from '@/components/Loading';
 import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Icon from '@/components/Icon';
 import Toast from '@/components/Toast';
-import { classAPI, attendanceAPI } from '@/utils/api';
-import Loading from '@/components/Loading';
+import { useAuth } from '@/context/AuthContext';
+import { attendanceAPI, classAPI } from '@/utils/api';
+import { useCallback, useEffect, useState } from 'react';
 
 const staffMenu = [
   { label: 'Dashboard', href: '/staff/dashboard', iconName: 'dashboard' },
@@ -19,8 +19,10 @@ const staffMenu = [
 ];
 
 export default function StaffAttendance() {
+  const { user } = useAuth();
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [existingAttendance, setExistingAttendance] = useState({}); // Track existing record IDs
@@ -63,6 +65,18 @@ export default function StaffAttendance() {
     try {
       const classData = await classAPI.getById(selectedClass);
       setStudents(classData.data.students);
+      
+      // Find the current teacher's subject for this class
+      if (classData.data.teachers && user) {
+        const teacherRecord = classData.data.teachers.find(
+          t => t.teacherId === user._id || (typeof t.teacherId === 'object' && t.teacherId._id === user._id)
+        );
+        if (teacherRecord) {
+          setSelectedSubject(teacherRecord.subject);
+        } else {
+          setSelectedSubject('');
+        }
+      }
     } catch (error) {
       console.error('Error fetching students:', error);
     }
@@ -79,10 +93,8 @@ export default function StaffAttendance() {
       const attendanceMap = {};
       const attendanceIdMap = {};
       
-      // Initialize all students with 'present'
-      classData.data.students.forEach(student => {
-        attendanceMap[student._id] = 'present';
-      });
+      // Do NOT initialize students with 'present' - let them start empty
+      // They will only have a value if an existing record is found
       
       // Fetch existing records
       const promises = studentIds.map(async (studentId) => {
@@ -115,8 +127,8 @@ export default function StaffAttendance() {
   };
 
   const handleAttendanceChange = useCallback(async (studentId, status) => {
-    // Get previous status before updating
-    const prevStatus = attendance[studentId] || 'present';
+    // Get previous status - if not set, use empty string
+    const prevStatus = attendance[studentId] || '';
     
     // Update local state immediately for responsive UI
     setAttendance(prev => ({
@@ -132,6 +144,7 @@ export default function StaffAttendance() {
         studentId,
         date: date,
         status: status,
+        subject: selectedSubject,
       };
       
       await attendanceAPI.create(record);
@@ -143,10 +156,19 @@ export default function StaffAttendance() {
       });
       
       if (data && data.length > 0) {
-        // Find the record for this specific date
+        // Find the record for this specific date using Manila timezone conversion
         const savedRecord = data.find(a => {
-          const recordDate = new Date(a.date).toISOString().split('T')[0];
-          return recordDate === date;
+          const recordDateStr = typeof a.date === 'string' 
+            ? a.date.split('T')[0]
+            : (() => {
+                const d = new Date(a.date);
+                d.setHours(d.getHours() + 8); // Convert to Manila time (UTC+8)
+                const year = d.getUTCFullYear();
+                const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(d.getUTCDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+              })();
+          return recordDateStr === date;
         });
         
         if (savedRecord) {
@@ -195,6 +217,7 @@ export default function StaffAttendance() {
         studentId: student._id,
         date: date,
         status: status,
+        subject: selectedSubject,
       }));
 
       await Promise.all(
@@ -282,11 +305,12 @@ export default function StaffAttendance() {
                       <td>
                         <div className="flex items-center gap-2">
                           <select
-                            value={attendance[student._id] || 'present'}
+                            value={attendance[student._id] || ''}
                             onChange={(e) => handleAttendanceChange(student._id, e.target.value)}
                             className="input-field py-1"
                             disabled={saving[student._id]}
                           >
+                            <option value="" disabled>Select Status</option>
                             <option value="present">Present</option>
                             <option value="absent">Absent</option>
                             <option value="late">Late</option>

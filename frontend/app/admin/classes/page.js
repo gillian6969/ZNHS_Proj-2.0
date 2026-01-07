@@ -8,7 +8,7 @@ import ModernSidebar from '@/components/ModernSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Toast from '@/components/Toast';
 import { classAPI, staffAPI } from '@/utils/api';
-import { SECTIONS } from '@/utils/constants';
+import { SECTIONS_BY_GRADE } from '@/utils/constants';
 import { useEffect, useState } from 'react';
 
 const adminMenu = [
@@ -479,7 +479,7 @@ export default function AdminClasses() {
                   className="input-field"
                   required
                 >
-                  {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(grade => (
+                  {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'].map(grade => (
                     <option key={grade} value={grade}>{grade}</option>
                   ))}
                 </select>
@@ -494,7 +494,7 @@ export default function AdminClasses() {
                   required
                 >
                   <option value="">Select Section</option>
-                  {SECTIONS.map(section => (
+                  {(SECTIONS_BY_GRADE[formData.gradeLevel] || []).map(section => (
                     <option key={section} value={section}>{section}</option>
                   ))}
                 </select>
@@ -631,7 +631,7 @@ export default function AdminClasses() {
                   className="input-field"
                   required
                 >
-                  {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(grade => (
+                  {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'].map(grade => (
                     <option key={grade} value={grade}>{grade}</option>
                   ))}
                 </select>
@@ -646,7 +646,7 @@ export default function AdminClasses() {
                   required
                 >
                   <option value="">Select Section</option>
-                  {SECTIONS.map(section => (
+                  {(SECTIONS_BY_GRADE[formData.gradeLevel] || []).map(section => (
                     <option key={section} value={section}>{section}</option>
                   ))}
                 </select>
